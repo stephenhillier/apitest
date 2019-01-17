@@ -1,0 +1,14 @@
+requests:
+  - name: Well list
+    url: https://apps.nrs.gov.bc.ca/gwells/api/v1/wells/
+    method: get
+    expect:
+      status: 200
+  - name: Create well
+    url: https://apps.nrs.gov.bc.ca/gwells/api/v1/wells/
+    method: post
+    expect:
+      status: 200
+      values:
+        - key: well_tag_number
+          value: 123
