@@ -34,8 +34,8 @@ type Expect struct {
 // JSONValue is an expected value received as part of a JSON response
 // e.g.  {"key": "value"}
 type JSONValue struct {
-	Key   string `yaml:"key"`
-	Value string `yaml:"value"`
+	Key   string      `yaml:"key"`
+	Value interface{} `yaml:"value"`
 }
 
 func main() {

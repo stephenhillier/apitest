@@ -11,6 +11,6 @@ requests:
       status: 201
       values:
         - key: id
-          value: '1231'
+          value: 123
         - key: todo_title
           value: Clean the house

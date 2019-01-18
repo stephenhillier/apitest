@@ -30,7 +30,7 @@ func request(url string, method string, expect Expect, count int) error {
 		log.Printf("  FAIL expected: %v received: %v", expect.Status, resp.StatusCode)
 	}
 
-	body := make(map[string]string)
+	body := make(map[string]interface{})
 	err = json.NewDecoder(resp.Body).Decode(&body)
 	if err != nil {
 		log.Println(err)
@@ -41,12 +41,15 @@ func request(url string, method string, expect Expect, count int) error {
 
 	// Check for JSON values
 	for _, v := range expect.Values {
-		err := checkJSONResponse(body[v.Key], v.Value)
+
+		jsonValue := body[v.Key]
+
+		err := checkJSONResponse(v.Key, jsonValue, v.Value)
 		if err != nil {
 			failCount++
-			log.Printf("  FAIL  %s equal to: %s, received: %s", v.Key, v.Value, body[v.Key])
+			log.Println("  FAIL,", v.Key, err)
 		} else {
-			log.Printf("  OK  %s equal to: %s", v.Key, v.Value)
+			log.Printf("  OK  %v equal to: %v", v.Key, v.Value)
 		}
 
 	}
@@ -60,10 +63,16 @@ func request(url string, method string, expect Expect, count int) error {
 }
 
 // checkJSONResponse compares a key and expected value to a map of a response body
-// TODO: this basic implementation only supports strings and flat JSON responses.
-func checkJSONResponse(value string, expectedValue string) error {
-	if value != expectedValue {
-		return fmt.Errorf("expected: %v received: %v", expectedValue, value)
+func checkJSONResponse(key string, value interface{}, expectedValue interface{}) error {
+
+	// use the Sprintf method to convert our value and expectedValue to strings so they can be
+	// directly compared.
+	sValue := fmt.Sprintf("%v", value)
+	sExpected := fmt.Sprintf("%v", expectedValue)
+
+	if sValue != sExpected {
+		return fmt.Errorf("expected: %v received: %v", sExpected, sValue)
 	}
+
 	return nil
 }

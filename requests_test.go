@@ -13,13 +13,13 @@ func basicRequestHandler(w http.ResponseWriter, req *http.Request) {
 
 	// todo contains some example data used for testing a "todo app"
 	type todo struct {
-		ID              string `json:"id"`
+		ID              int    `json:"id"`
 		TodoTitle       string `json:"todo_title"`
 		TodoDescription string `json:"todo_description"`
 	}
 
 	data := todo{
-		ID:              "123",
+		ID:              123,
 		TodoTitle:       "Clean the house",
 		TodoDescription: "It's time to clean up around here",
 	}
