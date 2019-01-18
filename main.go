@@ -4,20 +4,18 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"strings"
 
 	"gopkg.in/yaml.v2"
 )
 
-// TestSet is a set of requests and assertions contained within a file of tests
+// TestSet is a set of requests and assertions
 type TestSet struct {
 	Requests []Request `yaml:"requests"`
 }
 
-// Request represents a request made against a URL.
-// The response will be checked against any Expect instances contained
-// within the Expect slice.
+// Request is a request made against a URL to test the response.
+// The response will be checked against the conditions in the Expect struct
 type Request struct {
 	Name   string `yaml:"name"`
 	URL    string `yaml:"url"`
@@ -27,65 +25,77 @@ type Request struct {
 
 // Expect is a test assertion.  The values provided will be checked against the request's response.
 type Expect struct {
-	Status int
+	// Status is the response status code, e.g. 200 for "OK", 404 for "Not Found"
+	Status int         `yaml:"status"`
+	Values []JSONValue `yaml:"values"`
+}
+
+// JSONValue is an expected value received as part of a JSON response
+// e.g.  {"key": "value"}
+type JSONValue struct {
+	Key   string `yaml:"key"`
+	Value string `yaml:"value"`
 }
 
 func main() {
+	filename := "test/test.yaml"
+	// read in test definitions from a provided yaml file
+	set, err := readTestDefinition(filename)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
+	// run the set of tests and exit the program.
+	// additional output will be provided by each request.
+	// TODO: handle multiple test suites
+	log.Println("Running tests...")
+	totalRequests, failCount := runRequests(set.Requests)
+
+	log.Println("Total requests:", totalRequests)
+
+	if failCount > 0 {
+		log.Fatalf("FAIL  %s (%v requests, %v failed)", filename, totalRequests, failCount)
+	}
+	log.Printf("OK  %s (%v requests)", filename, totalRequests)
+}
+
+// readTestDefinition reads a yaml file of test requests
+// and returns a TestSet.  If an error occurs while reading the file
+// or unmarshaling yaml, an empty test set and an error will be returned.
+func readTestDefinition(filename string) (TestSet, error) {
 	set := TestSet{}
 
-	file, err := ioutil.ReadFile("test/test.yaml")
+	// Read in a yaml file containing
+	file, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Fatalf("File open error %v ", err)
+		return TestSet{}, fmt.Errorf("File open error %v ", err)
 	}
+
+	// convert yaml to structs.
+	// the output should be a single TestSet with nested Request structs.
 	err = yaml.Unmarshal(file, &set)
-
 	if err != nil {
-		log.Fatalf("Unmarshal: %v", err)
+		return TestSet{}, fmt.Errorf("Unmarshal: %v", err)
 	}
 
-	log.Println("Running tests...")
+	return set, nil
+}
 
-	totalRequests := len(set.Requests)
+// runRequests accepts a set of Request objects and calls the request() function
+// for each one. Since requests are expected to fail often, errors are not passed
+// up to the calling function, but instead reported to output, tallied
+// and the total request & error counts returned at the end of the run.
+func runRequests(requests []Request) (totalRequests int, failCount int) {
+	totalRequests = len(requests)
 	currentRequest := 1
-	failCount := 0
 
-	for _, r := range set.Requests {
-		err = request(r.URL, strings.ToUpper(r.Method), r.Expect, currentRequest)
+	for _, r := range requests {
+		err := request(r.URL, strings.ToUpper(r.Method), r.Expect, currentRequest)
 		if err != nil {
 			log.Println(err)
 			failCount++
 		}
 		currentRequest++
 	}
-
-	log.Println("Total requests:", totalRequests)
-	log.Println("Requests with failing assertions:", failCount)
-
-}
-
-// request makes an http client request and checks the response body and response status
-// against any Expect conditions provided
-func request(url string, method string, expect Expect, count int) error {
-	client := &http.Client{}
-
-	req, err := http.NewRequest(method, url, nil)
-	if err != nil {
-		return err
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != expect.Status {
-		return fmt.Errorf("%v.   FAIL  %s %s Expected: %v Received: %v", count, method, url, expect.Status, resp.StatusCode)
-	}
-	log.Printf("%v.   OK    %s %s %v", count, method, url, resp.StatusCode)
-
-	// for _, e := range expect.JSONValues {
-	// }
-
-	return nil
+	return totalRequests, failCount
 }

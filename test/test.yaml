@@ -1,14 +1,16 @@
 requests:
   - name: Well list
-    url: https://apps.nrs.gov.bc.ca/gwells/api/v1/wells/
+    url: http://localhost:8000/api/v1/todos
     method: get
     expect:
       status: 200
   - name: Create well
-    url: https://apps.nrs.gov.bc.ca/gwells/api/v1/wells/
+    url: http://localhost:8000/api/v1/todos
     method: post
     expect:
-      status: 200
+      status: 201
       values:
-        - key: well_tag_number
-          value: 123
+        - key: id
+          value: '1231'
+        - key: todo_title
+          value: Clean the house
