@@ -52,7 +52,7 @@ func request(url string, method string, expect Expect, count int) error {
 	}
 
 	if failCount > 0 {
-		return fmt.Errorf(" %v failing conditions", failCount)
+		return fmt.Errorf("  %v failing conditions", failCount)
 	}
 
 	// request tests passed, return nil error

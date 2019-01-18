@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 
+	flag "github.com/spf13/pflag"
 	"gopkg.in/yaml.v2"
 )
 
@@ -38,7 +39,14 @@ type JSONValue struct {
 }
 
 func main() {
-	filename := "test/test.yaml"
+	var filename string
+	flag.StringVarP(&filename, "file", "f", "", "yaml file containing a list of test requests")
+	flag.Parse()
+
+	if filename == "" {
+		log.Fatal("Usage:  apitest -f test.yaml")
+	}
+
 	// read in test definitions from a provided yaml file
 	set, err := readTestDefinition(filename)
 	if err != nil {
@@ -92,7 +100,7 @@ func runRequests(requests []Request) (totalRequests int, failCount int) {
 	for _, r := range requests {
 		err := request(r.URL, strings.ToUpper(r.Method), r.Expect, currentRequest)
 		if err != nil {
-			log.Println(err)
+			log.Println("  ", err)
 			failCount++
 		}
 		currentRequest++

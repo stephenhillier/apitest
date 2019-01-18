@@ -1,10 +1,10 @@
 requests:
-  - name: Well list
+  - name: Todo list
     url: http://localhost:8000/api/v1/todos
     method: get
     expect:
       status: 200
-  - name: Create well
+  - name: Create a todo item
     url: http://localhost:8000/api/v1/todos
     method: post
     expect:

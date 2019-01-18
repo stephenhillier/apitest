@@ -38,12 +38,11 @@ requests:
 
 
 ### Command line
-Coming soon!
+
+`apitest -f input.yaml`
 
 ### In a container-based CI/CD pipeline (GitHub Actions)
 Coming soon!
-
-
 
 ## Developing
 `go get github.com/stephenhillier/apitest`
