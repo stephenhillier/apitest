@@ -41,8 +41,18 @@ requests:
 
 `apitest -f input.yaml`
 
-### In a container-based CI/CD pipeline (GitHub Actions)
-Coming soon!
+### GitHub Actions
+
+Add a step to your workflow like this:
+```
+action "Run API tests" {
+  uses = "stephenhillier/apitest@master"
+  args = ["-f", "test/test.yaml"]
+}
+```
+
+Replace `test/test.yaml` with the path to your request definitions.
+See the `.github/main.workflow` file in this repo for a working example.
 
 ## Developing
 `go get github.com/stephenhillier/apitest`
