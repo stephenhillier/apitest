@@ -18,22 +18,21 @@ Define requests in YAML.
 
 ```yaml
 requests:
-  - name: Todo list
-    url: http://localhost:8000/api/v1/todos
+  - name: Todo 1
+    url: https://jsonplaceholder.typicode.com/todos/1
     method: get
     expect:
       status: 200
+      values:
+        - key: id
+          value: 1
+        - key: title
+          value: delectus aut autem
   - name: Create a todo item
-    url: http://localhost:8000/api/v1/todos
+    url: https://jsonplaceholder.typicode.com/todos
     method: post
     expect:
       status: 201
-      values:
-        - key: id
-          value: "1231"
-        - key: todo_title
-          value: Clean the house
-
 ```
 
 
