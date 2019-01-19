@@ -3,7 +3,7 @@ A lightweight API testing tool
 
 ## Usage
 
-### Request definitions
+### YAML test specs
 
 Define requests in YAML.
 
@@ -51,7 +51,7 @@ action "Run API tests" {
 }
 ```
 
-Replace `test/test.yaml` with the path to your request definitions.
+Replace `test/test.yaml` with the path to your yaml specs.
 See the `.github/main.workflow` file in this repo for a working example.
 
 ## Developing
