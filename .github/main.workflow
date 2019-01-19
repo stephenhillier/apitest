@@ -5,5 +5,5 @@ workflow "New workflow" {
 
 action "stephenhillier/apitest" {
   uses = "stephenhillier/apitest@master"
-  args = "[\"-f\", \"test/test.yaml\"]"
+  args = ["-f", "test/test.yaml"]
 }
