@@ -64,7 +64,7 @@ func main() {
 	if failCount > 0 {
 		log.Fatalf("FAIL  %s (%v requests, %v failed)", filename, totalRequests, failCount)
 	}
-	log.Printf("OK  %s (%v requests)", filename, totalRequests)
+	log.Printf("PASSED  %s (%v requests)", filename, totalRequests)
 }
 
 // readTestDefinition reads a yaml file of test requests

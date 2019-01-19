@@ -25,9 +25,10 @@ func request(url string, method string, expect Expect, count int) error {
 	defer resp.Body.Close()
 
 	// Check that status code matches the expected value, return with an error message on fail
-	// TODO: break this out into a more general function that handles different assertions
 	if resp.StatusCode != expect.Status {
 		log.Printf("  FAIL expected: %v received: %v", expect.Status, resp.StatusCode)
+	} else {
+		log.Printf("  ✓  status is %v", resp.StatusCode)
 	}
 
 	body := make(map[string]interface{})
@@ -49,7 +50,7 @@ func request(url string, method string, expect Expect, count int) error {
 			failCount++
 			log.Println("  FAIL,", v.Key, err)
 		} else {
-			log.Printf("  OK  %v equal to: %v", v.Key, v.Value)
+			log.Printf("  ✓  %v equal to: %v", v.Key, v.Value)
 		}
 
 	}
