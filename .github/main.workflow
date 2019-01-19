@@ -1,9 +1,9 @@
-workflow "New workflow" {
+workflow "Sample API tests" {
   on = "push"
-  resolves = ["stephenhillier/apitest"]
+  resolves = ["Run sample tests"]
 }
 
-action "stephenhillier/apitest" {
+action "Run sample tests" {
   uses = "stephenhillier/apitest@master"
   args = ["-f", "test/test.yaml"]
 }
