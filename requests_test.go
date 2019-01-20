@@ -13,15 +13,15 @@ func basicRequestHandler(w http.ResponseWriter, req *http.Request) {
 
 	// todo contains some example data used for testing a "todo app"
 	type todo struct {
-		ID              int    `json:"id"`
-		TodoTitle       string `json:"todo_title"`
-		TodoDescription string `json:"todo_description"`
+		ID          int    `json:"id"`
+		Title       string `json:"title"`
+		Description string `json:"description"`
 	}
 
 	data := todo{
-		ID:              123,
-		TodoTitle:       "Clean the house",
-		TodoDescription: "It's time to clean up around here",
+		ID:          1,
+		Title:       "delectus aut autem",
+		Description: "something to do",
 	}
 
 	switch req.Method {
@@ -53,15 +53,18 @@ func TestRequestSet(t *testing.T) {
 		t.Error("Error reading test yaml file:", err)
 	}
 
-	// rewrite the URL for each request in the test yaml file to point at the httptest server
-	for i := range set.Requests {
-		set.Requests[i].URL = server.URL
-	}
+	// // rewrite the URL for each request in the test yaml file to point at the httptest server
+	// for i := range set.Requests {
+	// 	set.Requests[i].URL = server.URL
+	// }
+
+	env := make(map[string]interface{})
+	env["host"] = server.URL
 
 	// this is fragile, and will fail if more requests are added to the test.yaml file
 	// todo:  rework test to focus more on logic, less on yaml file staying the same.
 	expectedTotal, expectedFails := 2, 0
-	total, fails := runRequests(set.Requests)
+	total, fails := runRequests(set.Requests, env)
 
 	if total != expectedTotal {
 		t.Errorf("Expected '%v', received '%v'", expectedTotal, total)

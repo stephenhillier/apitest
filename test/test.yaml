@@ -1,6 +1,8 @@
+environment:
+  host: https://jsonplaceholder.typicode.com
 requests:
   - name: Todo list
-    url: https://jsonplaceholder.typicode.com/todos/1
+    url: "{{host}}/todos/1"
     method: get
     expect:
       status: 200
@@ -10,7 +12,7 @@ requests:
         - key: title
           value: delectus aut autem
   - name: Create a todo item
-    url: https://jsonplaceholder.typicode.com/todos
+    url: "{{host}}/todos"
     method: post
     expect:
       status: 201

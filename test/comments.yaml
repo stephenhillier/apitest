@@ -1,0 +1,26 @@
+environment:
+  host: https://jsonplaceholder.typicode.com
+requests:
+  - name: Add a comment
+    url: "{{host}}/comments"
+    method: post
+    expect:
+      status: 201
+    set:
+      - var: created_comment
+        from: id
+  - name: Get single comment
+    url: "{{host}}/comments/1" # jsonplaceholder doesn't support getting back the POST'ed comment (it 404's)
+    method: get
+    expect:
+      status: 200
+      values:
+        - key: id
+          value: 1
+        - key: name
+          value: id labore ex et quam laborum
+  - name: Try to retrieve created comment
+    url: "{{host}}/comments/{{created_comment}}"
+    method: get
+    expect:
+      status: 404

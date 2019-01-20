@@ -1,15 +1,30 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
+	"text/template"
 )
 
 // request makes an http client request and checks the response body and response status
 // against any Expect conditions provided
-func request(url string, method string, expect Expect, count int) error {
+func request(request Request, count int, envMap map[string]interface{}) error {
+
+	method := strings.ToUpper(request.Method)
+	expect := request.Expect
+
+	// setRequestEnvironment will use Go's text templates to replace values in the URL and expect specs
+	// with provided values in the envMap
+	url, err := setRequestEnvironment(request.URL, envMap)
+	if err != nil {
+		return err
+	}
+
 	log.Printf("%v.  %s %s", count, method, url)
 
 	client := &http.Client{}
@@ -31,11 +46,16 @@ func request(url string, method string, expect Expect, count int) error {
 		log.Printf("  ✓  status is %v", resp.StatusCode)
 	}
 
+	// start checking JSON values, first checking that content type is application/json
+	if !contains(resp.Header["Content-Type"], "application/json") {
+		return errors.New("response body not JSON, skipping JSON value checks")
+	}
+
 	body := make(map[string]interface{})
 	err = json.NewDecoder(resp.Body).Decode(&body)
 	if err != nil {
 		log.Println(err)
-		return fmt.Errorf("  ERROR %s %s could not decode response body", method, url)
+		return fmt.Errorf("ERROR %s %s could not decode response body", method, url)
 	}
 
 	failCount := 0
@@ -55,12 +75,37 @@ func request(url string, method string, expect Expect, count int) error {
 
 	}
 
+	// Set user vars (defined by a `set:` block in the request spec)
+	for _, v := range request.SetVars {
+		envMap[v.Name] = fmt.Sprintf("%v", body[v.Key])
+	}
+
 	if failCount > 0 {
 		return fmt.Errorf("  %v failing conditions", failCount)
 	}
 
 	// request tests passed, return nil error
 	return nil
+}
+
+// setRequestEnvironment takes a url and an Expect struct and modifies them according to the
+// values in the envMap, which contains some user defined values (or automatically updated values).
+// it returns back a new url and Expect struct with any "template tags", e.g. {{ }}, replaced.
+func setRequestEnvironment(url string, envMap map[string]interface{}) (string, error) {
+
+	var urlBuffer bytes.Buffer
+	urlTemplate, err := template.New("url").Parse(url)
+	if err != nil {
+		return "", err
+	}
+
+	err = urlTemplate.Execute(&urlBuffer, envMap)
+	if err != nil {
+		return "", err
+	}
+	url = urlBuffer.String()
+
+	return url, nil
 }
 
 // checkJSONResponse compares a key and expected value to a map of a response body
@@ -76,4 +121,15 @@ func checkJSONResponse(key string, value interface{}, expectedValue interface{})
 	}
 
 	return nil
+}
+
+// contains is a helper function to check if a slice of strings contains a particular string.
+// each string in the slice need only contain a substring, a full match is not necessary
+func contains(s []string, substring string) bool {
+	for _, item := range s {
+		if strings.Contains(item, substring) {
+			return true
+		}
+	}
+	return false
 }
