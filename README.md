@@ -23,12 +23,13 @@ environment:
 
 ```yaml
 requests:
-  - name: Add a pizza
-    url: "{{host}}/pizzas"
+  - name: Add a joke
+    url: "{{host}}/jokes"
     method: post
     body:
-      size: Large
-      type: Pepperoni
+        joke: How did the Vikings send secret messages?
+        punchline: By norse code!
+
 ```
 
   * `expect`: add simple checks to an expect block:  
@@ -37,14 +38,14 @@ requests:
 
 ```yaml
 requests:
-  - name: My test request
-    url: "{{host}}/jokes/1"
+  - name: Get pizza
+    url: "{{host}}/pizzas/1"
     method: get
     expect:
       status: 200
       values:
-        joke: How did the Vikings send secret messages?
-        punchline: By norse code!
+        size: Large
+        type: Pepperoni
 ```
 
   * `set`: a list of items with `var` (the variable to be set) and `from` (a field in the response)
@@ -62,7 +63,7 @@ requests:
     expect:
       status: 201
     body:
-      content: This is my comment!
+      comment: This is my comment!
     set:
       - var: created_comment
         from: id
@@ -73,7 +74,7 @@ requests:
       status: 200
       values:
         id: 1
-        content: This is my comment!
+        comment: This is my comment!
 ```
 
 
