@@ -48,7 +48,7 @@ requests:
         type: Pepperoni
 ```
 
-  * `set`: a list of items with `var` (the variable to be set) and `from` (a field in the response)
+  * `set`: a list of env variables to set from the response. Each item should have a `var` (the variable to be set) and `from` (a field in the response). This will be helpful for capturing the ID of a created resource to use in a later request.
 
 
 #### Complete example
