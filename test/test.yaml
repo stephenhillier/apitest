@@ -7,10 +7,8 @@ requests:
     expect:
       status: 200
       values:
-        - key: id
-          value: 1
-        - key: title
-          value: delectus aut autem
+        id: 1
+        title: delectus aut autem
   - name: Create a todo item
     url: "{{host}}/todos"
     method: post

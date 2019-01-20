@@ -20,25 +20,19 @@ type TestSet struct {
 // Request is a request made against a URL to test the response.
 // The response will be checked against the conditions in the Expect struct
 type Request struct {
-	Name    string    `yaml:"name"`
-	URL     string    `yaml:"url"`
-	Method  string    `yaml:"method"`
-	Expect  Expect    `yaml:"expect"`
-	SetVars []UserVar `yaml:"set"`
+	Name    string                 `yaml:"name"`
+	URL     string                 `yaml:"url"`
+	Method  string                 `yaml:"method"`
+	Body    map[string]interface{} `yaml:"body"`
+	Expect  Expect                 `yaml:"expect"`
+	SetVars []UserVar              `yaml:"set"`
 }
 
 // Expect is a test assertion.  The values provided will be checked against the request's response.
 type Expect struct {
 	// Status is the response status code, e.g. 200 for "OK", 404 for "Not Found"
-	Status int         `yaml:"status"`
-	Values []JSONValue `yaml:"values"`
-}
-
-// JSONValue is an expected value received as part of a JSON response
-// e.g.  {"key": "value"}
-type JSONValue struct {
-	Key   string      `yaml:"key"`
-	Value interface{} `yaml:"value"`
+	Status int                    `yaml:"status"`
+	Values map[string]interface{} `yaml:"values"`
 }
 
 // UserVar holds a value (string) and a type. It allows users to

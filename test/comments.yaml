@@ -4,6 +4,8 @@ requests:
   - name: Add a comment
     url: "{{host}}/comments"
     method: post
+    body:
+      comment: this is a comment
     expect:
       status: 201
     set:
@@ -15,10 +17,8 @@ requests:
     expect:
       status: 200
       values:
-        - key: id
-          value: 1
-        - key: name
-          value: id labore ex et quam laborum
+        id: 1
+        name: id labore ex et quam laborum
   - name: Try to retrieve created comment
     url: "{{host}}/comments/{{created_comment}}"
     method: get

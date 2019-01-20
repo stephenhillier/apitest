@@ -27,9 +27,14 @@ func request(request Request, count int, envMap map[string]interface{}) error {
 
 	log.Printf("%v.  %s %s", count, method, url)
 
-	client := &http.Client{}
+	reqBody, err := json.Marshal(request.Body)
+	if err != nil {
+		return errors.New("error serializing request body as JSON")
+	}
 
-	req, err := http.NewRequest(method, url, nil)
+	bodyBuffer := bytes.NewBuffer(reqBody)
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, bodyBuffer)
 	if err != nil {
 		return err
 	}
@@ -61,16 +66,16 @@ func request(request Request, count int, envMap map[string]interface{}) error {
 	failCount := 0
 
 	// Check for JSON values
-	for _, v := range expect.Values {
+	for k, v := range expect.Values {
 
-		jsonValue := body[v.Key]
+		jsonValue := body[k]
 
-		err := checkJSONResponse(v.Key, jsonValue, v.Value)
+		err := checkJSONResponse(k, jsonValue, v)
 		if err != nil {
 			failCount++
-			log.Println("  FAIL,", v.Key, err)
+			log.Println("  FAIL,", k, err)
 		} else {
-			log.Printf("  ✓  %v equal to: %v", v.Key, v.Value)
+			log.Printf("  ✓  %v equal to: %v", k, v)
 		}
 
 	}
