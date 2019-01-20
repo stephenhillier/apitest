@@ -5,7 +5,9 @@ A lightweight API testing tool
 
 ### YAML test specs
 
-Define requests in YAML.
+Define requests in YAML.  [See the example](#complete-example) for the format.
+
+#### Test spec properties
 
 `environment`: define variables that can be accessed through template tags e.g. `host: example.com` will be available as `{{host}}` in request URLs.  Currently only the URL field will accept environment variables, and entries containing `{{ }}` may need to be surrounded by quotes to make sure they are parsed as a string.
 
