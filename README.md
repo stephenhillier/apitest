@@ -1,5 +1,5 @@
 # apitest
-A lightweight API testing tool
+A lightweight API testing tool that can be used [from the command line](#command-line) or in a container based pipeline like [GitHub Actions](#github-actions).
 
 ## Usage
 
@@ -23,7 +23,7 @@ requests:
     body: # this will be submitted as JSON in the request body
       comment: This is my comment! 
     expect:
-      status: 201 # request will report as failed if 200 is not returned
+      status: 201 # request will report as failed if 201 is not returned
     set:
       # set variables based on a field from the JSON response
       - var: created_comment # {{created_comment}} will be set/updated for further requests to use
