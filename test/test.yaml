@@ -3,7 +3,6 @@ environment:
     host: https://jsonplaceholder.typicode.com
     token: secret123
   headers:
-    Content-Type: application/json
     Authorization: Bearer {{token}}
 requests:
   - name: Todo list
