@@ -25,7 +25,8 @@ func request(request Request, count int, env Environment) error {
 		return err
 	}
 
-	log.Printf("%v.  %s %s", count, method, url)
+	log.Printf("%v. %s", count, request.Name)
+	log.Println(" ", method, url)
 
 	reqBody, err := json.Marshal(request.Body)
 	if err != nil {
@@ -75,7 +76,7 @@ func request(request Request, count int, env Environment) error {
 
 		jsonValue := body[k]
 
-		err := checkJSONResponse(k, jsonValue, v)
+		err := checkJSONResponse(jsonValue, v, request.Expect.Strict)
 		if err != nil {
 			failCount++
 			log.Println("  FAIL,", k, err)
@@ -148,13 +149,25 @@ func setRequestVars(url string, headers map[string]string, vars map[string]inter
 	return url, headers, nil
 }
 
-// checkJSONResponse compares a key and expected value to a map of a response body
-func checkJSONResponse(key string, value interface{}, expectedValue interface{}) error {
+// checkJSONResponse compares two values of arbitrary type.
+// The values are considered equal if their string representation is the same (no type comparison)
+// This could be made more strict by directly comparing the interface{} values.
+func checkJSONResponse(value interface{}, expectedValue interface{}, strict bool) error {
 
 	// use the Sprintf method to convert our value and expectedValue to strings so they can be
 	// directly compared.
 	sValue := fmt.Sprintf("%v", value)
 	sExpected := fmt.Sprintf("%v", expectedValue)
+
+	if strict {
+		if value != expectedValue {
+			return fmt.Errorf("expected: %v (%T) received: %v (%T)", expectedValue, expectedValue, value, value)
+		}
+
+		return nil
+	}
+
+	// not strict: compare against string representation of value
 
 	if sValue != sExpected {
 		return fmt.Errorf("expected: %v received: %v", sExpected, sValue)

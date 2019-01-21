@@ -73,6 +73,7 @@ requests:
   * `expect`: add simple checks to an expect block:  
     * `status`: HTTP status code  
     * `values`: key/value pairs 
+    * `strict`: use `strict: true` to require expect & response type to be exactly the same (e.g. the integer `10` is not equal to the string "10"). Default is `false`.
 
 ```yaml
 requests:
@@ -84,6 +85,8 @@ requests:
       values:
         size: Large
         type: Pepperoni
+        quantity: 10
+      strict: true # quantity must be a number 10, not a string "10".  Use false if not important.
 ```
 
   * `set`: a list of env variables to set from the response. Each item should have a `var` (the variable to be set) and `from` (a field in the response). This will be helpful for capturing the ID of a created resource to use in a later request.

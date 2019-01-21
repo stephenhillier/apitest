@@ -43,6 +43,7 @@ type Expect struct {
 	// Status is the response status code, e.g. 200 for "OK", 404 for "Not Found"
 	Status int                    `yaml:"status"`
 	Values map[string]interface{} `yaml:"values"`
+	Strict bool                   `yaml:"strict"`
 }
 
 // UserVar holds a value (string) and a type. The key/value pair will be copied to the
@@ -56,7 +57,9 @@ type UserVar struct {
 
 func main() {
 	var filename string
+	var testname string
 	flag.StringVarP(&filename, "file", "f", "", "yaml file containing a list of test requests")
+	flag.StringVarP(&testname, "test", "t", "", "the name of a single test to run (use quotes if name has spaces)")
 	flag.Parse()
 
 	if filename == "" {
@@ -73,7 +76,7 @@ func main() {
 	// additional output will be provided by each request.
 	// TODO: handle multiple test suites
 	log.Println("Running tests...")
-	totalRequests, failCount := runRequests(set.Requests, set.Environment)
+	totalRequests, failCount := runRequests(set.Requests, set.Environment, testname)
 
 	log.Println("Total requests:", totalRequests)
 
@@ -117,18 +120,23 @@ func readTestDefinition(filename string) (TestSet, error) {
 // for each one. Since requests are expected to fail often, errors are not passed
 // up to the calling function, but instead reported to output, tallied
 // and the total request & error counts returned at the end of the run.
-func runRequests(requests []Request, env Environment) (totalRequests int, failCount int) {
-	totalRequests = len(requests)
-	currentRequest := 1
+func runRequests(requests []Request, env Environment, testname string) (int, int) {
+	failCount := 0
+	currentRequest := 0
 
 	// iterate through requests and keep track of test fails
 	for _, r := range requests {
+		// if a test name was provided, skip this test request if it does not match.
+		if testname != "" && testname != r.Name {
+			continue
+		}
+
+		currentRequest++
 		err := request(r, currentRequest, env)
 		if err != nil {
 			log.Println("  ", err)
 			failCount++
 		}
-		currentRequest++
 	}
-	return totalRequests, failCount
+	return currentRequest, failCount
 }
