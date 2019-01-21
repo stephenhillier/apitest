@@ -26,7 +26,11 @@ func basicRequestHandler(w http.ResponseWriter, req *http.Request) {
 
 	switch req.Method {
 	case "POST":
-
+		// mock route requiring authentication
+		if !contains(req.Header["Authorization"], "Bearer secret123") {
+			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(data)
@@ -53,18 +57,13 @@ func TestRequestSet(t *testing.T) {
 		t.Error("Error reading test yaml file:", err)
 	}
 
-	// // rewrite the URL for each request in the test yaml file to point at the httptest server
-	// for i := range set.Requests {
-	// 	set.Requests[i].URL = server.URL
-	// }
-
-	env := make(map[string]interface{})
-	env["host"] = server.URL
+	// rewrite the "host" variable to be the mock server
+	set.Environment.Vars["host"] = server.URL
 
 	// this is fragile, and will fail if more requests are added to the test.yaml file
 	// todo:  rework test to focus more on logic, less on yaml file staying the same.
 	expectedTotal, expectedFails := 2, 0
-	total, fails := runRequests(set.Requests, env)
+	total, fails := runRequests(set.Requests, set.Environment)
 
 	if total != expectedTotal {
 		t.Errorf("Expected '%v', received '%v'", expectedTotal, total)
@@ -74,4 +73,33 @@ func TestRequestSet(t *testing.T) {
 		t.Errorf("Expected '%v', received '%v'", expectedFails, fails)
 	}
 
+}
+
+func TestSetRequestVars(t *testing.T) {
+
+	testVars := make(map[string]interface{})
+	testHeaders := make(map[string]string)
+
+	url := `{{.host}}/api/v1/posts`
+	testVars["host"] = "localhost:8000"
+
+	expectedParsedURL := `localhost:8000/api/v1/posts`
+
+	testHeaders["Authorization"] = `Bearer {{.token}}`
+	testVars["token"] = "token"
+	expectedParsedHeader := `Bearer token`
+
+	parsedURL, parsedHeaders, err := setRequestVars(url, testHeaders, testVars)
+
+	if err != nil {
+		t.Error("error trying to parse url and headers")
+	}
+
+	if parsedHeaders["Authorization"] != expectedParsedHeader {
+		t.Errorf("Expected '%v', received '%v'", expectedParsedHeader, parsedHeaders["Authorization"])
+	}
+
+	if parsedURL != expectedParsedURL {
+		t.Errorf("Expected '%v', received '%v'", expectedParsedURL, parsedURL)
+	}
 }

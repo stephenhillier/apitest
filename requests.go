@@ -13,14 +13,14 @@ import (
 
 // request makes an http client request and checks the response body and response status
 // against any Expect conditions provided
-func request(request Request, count int, envMap map[string]interface{}) error {
+func request(request Request, count int, env Environment) error {
 
 	method := strings.ToUpper(request.Method)
 	expect := request.Expect
 
-	// setRequestEnvironment will use Go's text templates to replace values in the URL and expect specs
+	// setRequestVars will use Go's text templates to replace values in the URL and expect specs
 	// with provided values in the envMap
-	url, err := setRequestEnvironment(request.URL, envMap)
+	url, headers, err := setRequestVars(request.URL, env.Headers, env.Vars)
 	if err != nil {
 		return err
 	}
@@ -38,6 +38,11 @@ func request(request Request, count int, envMap map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
+
+	for k, v := range headers {
+		req.Header.Add(k, v)
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
@@ -82,7 +87,7 @@ func request(request Request, count int, envMap map[string]interface{}) error {
 
 	// Set user vars (defined by a `set:` block in the request spec)
 	for _, v := range request.SetVars {
-		envMap[v.Name] = fmt.Sprintf("%v", body[v.Key])
+		env.Vars[v.Name] = fmt.Sprintf("%v", body[v.Key])
 	}
 
 	if failCount > 0 {
@@ -93,24 +98,54 @@ func request(request Request, count int, envMap map[string]interface{}) error {
 	return nil
 }
 
-// setRequestEnvironment takes a url and an Expect struct and modifies them according to the
-// values in the envMap, which contains some user defined values (or automatically updated values).
-// it returns back a new url and Expect struct with any "template tags", e.g. {{ }}, replaced.
-func setRequestEnvironment(url string, envMap map[string]interface{}) (string, error) {
+// setRequestVars takes a url, header set and a map of variables and modifies them according to the
+// variable map, which contains some user defined values (or automatically updated values).
+// it returns back a new url and headers with any "template tags", e.g. {{ }}, replaced.
+func setRequestVars(url string, headers map[string]string, vars map[string]interface{}) (string, map[string]string, error) {
 
 	var urlBuffer bytes.Buffer
+	var headerBuffer bytes.Buffer
+
+	// URL template tag variable replacement
+	// parse URL string with text/template, and return a new
+	// string with any {{ variables }} replaced with the values in the
+	// vars map.
 	urlTemplate, err := template.New("url").Parse(url)
 	if err != nil {
-		return "", err
+		return url, headers, err
 	}
 
-	err = urlTemplate.Execute(&urlBuffer, envMap)
+	err = urlTemplate.Execute(&urlBuffer, vars)
 	if err != nil {
-		return "", err
+		return url, headers, err
 	}
 	url = urlBuffer.String()
 
-	return url, nil
+	// Replace all variables in each header.
+	// the headers map is stringified first, then variables are replaced,
+	// and then the headers are marshalled back to a map[string]string.
+	// This is probably inefficient but is flexible
+	headerJSON, err := json.Marshal(headers)
+	if err != nil {
+		return url, headers, err
+	}
+
+	headerTemplate, err := template.New("header").Parse(string(headerJSON))
+	if err != nil {
+		return url, headers, err
+	}
+
+	err = headerTemplate.Execute(&headerBuffer, vars)
+	if err != nil {
+		return url, headers, err
+	}
+
+	err = json.Unmarshal(headerBuffer.Bytes(), &headers)
+	if err != nil {
+		return url, headers, err
+	}
+
+	return url, headers, nil
 }
 
 // checkJSONResponse compares a key and expected value to a map of a response body

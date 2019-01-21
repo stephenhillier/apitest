@@ -13,8 +13,18 @@ import (
 
 // TestSet is a set of requests and assertions
 type TestSet struct {
-	Requests    []Request              `yaml:"requests"`
-	Environment map[string]interface{} `yaml:"environment"`
+	Requests    []Request   `yaml:"requests"`
+	Environment Environment `yaml:"environment"`
+}
+
+// Environment stores defaults to use with each request.
+// Vars holds variables to be inserted (using the text/template package)
+// into request specs (e.g. http://{{hostname}}/api/posts). Vars may be updated
+// after a request if the input request spec has a "set" block.
+// Headers can contain variables.
+type Environment struct {
+	Vars    map[string]interface{} `yaml:"vars"`
+	Headers map[string]string      `yaml:"headers"`
 }
 
 // Request is a request made against a URL to test the response.
@@ -35,9 +45,10 @@ type Expect struct {
 	Values map[string]interface{} `yaml:"values"`
 }
 
-// UserVar holds a value (string) and a type. It allows users to
-// store values from one request to the next (e.g. a token received after a login request, or
-// the ID or other response value from a created resource)
+// UserVar holds a value (string) and a type. The key/value pair will be copied to the
+// Environment.Vars map. This allows users to store values from one request to the next
+// (e.g. a token received after a login request, or the ID or other response value from
+// a created resource)
 type UserVar struct {
 	Key  string `yaml:"from"`
 	Name string `yaml:"var"`
@@ -84,7 +95,7 @@ func readTestDefinition(filename string) (TestSet, error) {
 		return TestSet{}, fmt.Errorf("File open error %v ", err)
 	}
 
-	// process template tags.  a period will be pre-pended to the argument {{ myVar }} becomes {{ .myVar }}
+	// process template tags.  a period will be pre-pended to the argument: {{ myVar }} becomes {{ .myVar }}
 	// so that the text/template package can process them.
 	r, err := regexp.Compile(`{{\s*(\w+)\s*}}`)
 	if err != nil {
@@ -106,16 +117,13 @@ func readTestDefinition(filename string) (TestSet, error) {
 // for each one. Since requests are expected to fail often, errors are not passed
 // up to the calling function, but instead reported to output, tallied
 // and the total request & error counts returned at the end of the run.
-func runRequests(requests []Request, envMap map[string]interface{}) (totalRequests int, failCount int) {
+func runRequests(requests []Request, env Environment) (totalRequests int, failCount int) {
 	totalRequests = len(requests)
 	currentRequest := 1
 
-	// create a mapping for user-defined variables within the test.
-	// these are necessary for setting a value during one test (e.g, an auth token
-	// or an ID for a created resource) and then referring to it during later tests.
-
+	// iterate through requests and keep track of test fails
 	for _, r := range requests {
-		err := request(r, currentRequest, envMap)
+		err := request(r, currentRequest, env)
 		if err != nil {
 			log.Println("  ", err)
 			failCount++

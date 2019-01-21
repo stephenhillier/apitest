@@ -5,15 +5,52 @@ A lightweight API testing tool
 
 ### YAML test specs
 
-Define requests in YAML.  [See the example](#complete-example) for the format.
+Define requests in YAML.  [See the test spec properties](#test-spec-properties) for more details on individual fields.
 
-#### Test spec properties
-
-`environment`: define variables that can be accessed through template tags e.g. `host: example.com` will be available as `{{host}}` in request URLs.  Currently only the URL field will accept environment variables, and entries containing `{{ }}` may need to be surrounded by quotes to make sure they are parsed as a string.
+#### Complete example
 
 ```yaml
 environment:
-  host: https://www.example.com/api/v1
+  vars:
+    host: http://localhost:8000 # {{host}} in request URLs will be replaced with this value
+    token: secret123
+  headers:
+    Authorization: Bearer {{token}} # all requests will include this header
+requests:
+  - name: Add a comment
+    url: "{{host}}/comments"
+    method: post
+    body: # this will be submitted as JSON in the request body
+      comment: This is my comment! 
+    expect:
+      status: 201 # request will report as failed if 200 is not returned
+    set:
+      # set variables based on a field from the JSON response
+      - var: created_comment # {{created_comment}} will be set/updated for further requests to use
+        from: id
+  - name: Get single comment
+    url: "{{host}}/comments/{{created_comment}}"
+    method: get
+    expect:
+      status: 200  
+      values:
+        comment: This is my comment! # the JSON response `comment` field must match this value
+```
+
+#### Test spec properties
+
+`environment`: define defaults like request headers or starting values of variables.
+
+  * `headers`: key/value pairs with any headers that should be added to each request.
+  * `vars`: variables that can be accessed through template tags; e.g. `host: example.com` will be available as `{{host}}` in request URLs.  Currently only URLs and headers will accept variables, and strings starting with `{{ }}` may need to be surrounded by quotes to make sure they are parsed as a string.
+
+```yaml
+environment:
+  vars:
+    host: https://www.example.com/api/v1
+    token: secret123
+  headers:
+    Authorization: Bearer {{token}}
 ```
 
 `requests`: a list of requests to make as part of the test run.  Each request in the list can have the following properties:
@@ -29,9 +66,8 @@ requests:
     url: "{{host}}/jokes"
     method: post
     body:
-        joke: How did the Vikings send secret messages?
-        punchline: By norse code!
-
+      joke: How did the Vikings send secret messages?
+      punchline: By norse code!
 ```
 
   * `expect`: add simple checks to an expect block:  
@@ -52,33 +88,20 @@ requests:
 
   * `set`: a list of env variables to set from the response. Each item should have a `var` (the variable to be set) and `from` (a field in the response). This will be helpful for capturing the ID of a created resource to use in a later request.
 
-
-#### Complete example
-
 ```yaml
-environment:
-  host: http://localhost:8000
 requests:
-  - name: Add a comment
-    url: "{{host}}/comments"
+  - name: Order fast food
+    url: "{{host}}/orders"
     method: post
-    expect:
-      status: 201
     body:
-      comment: This is my comment!
+      type: hamburder
+      quantity: 1000
     set:
-      - var: created_comment
-        from: id
-  - name: Get single comment
-    url: "{{host}}/comments/{{created_comment}}"
-    method: get
-    expect:
-      status: 200
-      values:
-        id: 1
-        comment: This is my comment!
+      - var: created_order # can now use urls like example.com/api/orders/{{created_order}}
+        from: order_id
 ```
 
+[See the full example](#complete-example) for more on how test specs can be defined using these properties.
 
 ### Command line
 
