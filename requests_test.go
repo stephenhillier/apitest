@@ -58,13 +58,13 @@ func TestRequestSet(t *testing.T) {
 	}
 
 	// rewrite the "host" variable to be the mock server
-	set.Environment.Vars["host"] = server.URL
+	set.Vars["host"] = server.URL
 
 	// this is fragile, and will fail if more requests are added to the test.yaml file
 	// todo:  rework test to focus more on logic, less on yaml file staying the same.
 	expectedTotal, expectedFails := 2, 0
 	// the third argument is the test request name to run, and an empty string means all tests.
-	total, fails := runRequests(set.Requests, set.Environment, "")
+	total, fails := runRequests(set.Requests, set.Vars, set.Headers, "")
 
 	if total != expectedTotal {
 		t.Errorf("Expected '%v', received '%v'", expectedTotal, total)
@@ -87,7 +87,7 @@ func TestRequestSingle(t *testing.T) {
 	}
 
 	// rewrite the "host" variable to be the mock server
-	set.Environment.Vars["host"] = server.URL
+	set.Vars["host"] = server.URL
 
 	// this is the test request name to try
 	testName := "Todo list"
@@ -95,7 +95,7 @@ func TestRequestSingle(t *testing.T) {
 	// this is fragile, and will fail if more requests are added to the test.yaml file
 	// todo:  rework test to focus more on logic, less on yaml file staying the same.
 	expectedTotal, expectedFails := 1, 0
-	total, fails := runRequests(set.Requests, set.Environment, testName)
+	total, fails := runRequests(set.Requests, set.Vars, set.Headers, testName)
 
 	if total != expectedTotal {
 		t.Errorf("Expected '%v', received '%v'", expectedTotal, total)

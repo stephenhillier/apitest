@@ -5,17 +5,16 @@ A lightweight API testing tool that can be used [from the command line](#command
 
 ### YAML test specs
 
-Define requests in YAML.  [See the test spec properties](#test-spec-properties) for more details on individual fields.
+Define requests in YAML or [Hashicorp Configuration Language](https://github.com/hashicorp/hcl/).  For more details on individual fields, [see the test spec properties](#test-spec-properties).
 
 #### Complete example
 
 ```yaml
-environment:
-  vars:
-    host: http://localhost:8000 # {{host}} in request URLs will be replaced with this value
-    token: secret123
-  headers:
-    Authorization: Bearer {{token}} # all requests will include this header
+vars:
+  host: http://localhost:8000 # {{host}} in request URLs will be replaced with this value
+  token: secret123
+headers:
+  Authorization: Bearer {{token}} # all requests will include this header
 requests:
   - name: Add a comment
     url: "{{host}}/comments"
@@ -37,20 +36,60 @@ requests:
         comment: This is my comment! # the JSON response `comment` field must match this value
 ```
 
+#### Hashicorp Configuration Language (HCL)
+
+Why HCL? I wanted to make the request specs as easy to work with as possible while leveraging available VSCode extensions. HCL is an experiment to see which configuration language is most practical.
+
+```hcl
+# test.hcl
+
+vars = {
+  host = "http://localhost:8000" {{host}} in request URLs will be replaced with this value
+  token = "secret123"
+}
+
+headers = {
+  Authorization = "Bearer {{token}}" # all requests will include this header
+}
+
+request {
+  name = "Add a comment"
+  url = "{{host}}/comments"
+  method = "post"
+  body = {
+    comment = "This is my comment!"
+  }
+  expect = {
+    status = 201
+  }
+}
+
+request {
+  name = "Get a single comment"
+  url = "{{host}}/comments/{{created_comment}}"
+  method = "get"
+  expect = {
+    status = 200
+    values = {
+      comment = "This is my comment!"
+    }
+  }
+}
+```
+
 #### Test spec properties
 
-`environment`: define defaults like request headers or starting values of variables.
+Environment defaults:
 
   * `headers`: key/value pairs with any headers that should be added to each request.
   * `vars`: variables that can be accessed through template tags; e.g. `host: example.com` will be available as `{{host}}` in request URLs.  Currently only URLs and headers will accept variables, and strings starting with `{{ }}` may need to be surrounded by quotes to make sure they are parsed as a string.
 
 ```yaml
-environment:
-  vars:
-    host: https://www.example.com/api/v1
-    token: secret123
-  headers:
-    Authorization: Bearer {{token}}
+vars:
+  host: https://www.example.com/api/v1
+  token: secret123
+headers:
+  Authorization: Bearer {{token}}
 ```
 
 `requests`: a list of requests to make as part of the test run.  Each request in the list can have the following properties:

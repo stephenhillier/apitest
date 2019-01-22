@@ -5,26 +5,19 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"path/filepath"
 	"regexp"
 
+	"github.com/hashicorp/hcl"
 	flag "github.com/spf13/pflag"
 	"gopkg.in/yaml.v2"
 )
 
 // TestSet is a set of requests and assertions
 type TestSet struct {
-	Requests    []Request   `yaml:"requests"`
-	Environment Environment `yaml:"environment"`
-}
-
-// Environment stores defaults to use with each request.
-// Vars holds variables to be inserted (using the text/template package)
-// into request specs (e.g. http://{{hostname}}/api/posts). Vars may be updated
-// after a request if the input request spec has a "set" block.
-// Headers can contain variables.
-type Environment struct {
-	Vars    map[string]interface{} `yaml:"vars"`
-	Headers map[string]string      `yaml:"headers"`
+	Requests []Request              `yaml:"requests" hcl:"request"`
+	Vars     map[string]interface{} `yaml:"vars"`
+	Headers  map[string]string      `yaml:"headers"`
 }
 
 // Request is a request made against a URL to test the response.
@@ -35,7 +28,7 @@ type Request struct {
 	Method  string                 `yaml:"method"`
 	Body    map[string]interface{} `yaml:"body"`
 	Expect  Expect                 `yaml:"expect"`
-	SetVars []UserVar              `yaml:"set"`
+	SetVars map[string]string      `yaml:"set" hcl:"set"`
 }
 
 // Expect is a test assertion.  The values provided will be checked against the request's response.
@@ -46,13 +39,70 @@ type Expect struct {
 	Strict bool                   `yaml:"strict"`
 }
 
-// UserVar holds a value (string) and a type. The key/value pair will be copied to the
-// Environment.Vars map. This allows users to store values from one request to the next
-// (e.g. a token received after a login request, or the ID or other response value from
-// a created resource)
-type UserVar struct {
-	Key  string `yaml:"from"`
-	Name string `yaml:"var"`
+// readTestDefinition reads a yaml file of test requests
+// and returns a TestSet.  If an error occurs while reading the file
+// or unmarshaling yaml, an empty test set and an error will be returned.
+func readTestDefinition(filename string) (TestSet, error) {
+	set := TestSet{}
+
+	// Read in a yaml file containing test specs
+	file, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return TestSet{}, fmt.Errorf("File open error %v ", err)
+	}
+
+	// process template tags.  a period will be pre-pended to the argument: {{ myVar }} becomes {{ .myVar }}
+	// so that the text/template package can process them.
+	r, err := regexp.Compile(`{{\s*(\w+)\s*}}`)
+	if err != nil {
+		return TestSet{}, errors.New("error processing {{ template }} tags. Please double check input file")
+	}
+	file = r.ReplaceAll(file, []byte(`{{.$1}}`))
+
+	// check for HCL extension (note: testing if using HCL is practical)
+	fileExt := filepath.Ext(filename)
+	if fileExt == ".hcl" {
+		err = hcl.Unmarshal(file, &set)
+		if err != nil {
+			return TestSet{}, fmt.Errorf("Unmarshal HCL: %v", err)
+		}
+	} else {
+		// convert yaml to structs.
+		// the output should be a single TestSet with nested Request structs.
+		err = yaml.Unmarshal(file, &set)
+		if err != nil {
+			return TestSet{}, fmt.Errorf("Unmarshal YAML: %v", err)
+		}
+	}
+
+	log.Println(set)
+
+	return set, nil
+}
+
+// runRequests accepts a set of Request objects and calls the request() function
+// for each one. Since requests are expected to fail often, errors are not passed
+// up to the calling function, but instead reported to output, tallied
+// and the total request & error counts returned at the end of the run.
+func runRequests(requests []Request, vars map[string]interface{}, headers map[string]string, testname string) (int, int) {
+	failCount := 0
+	currentRequest := 0
+
+	// iterate through requests and keep track of test fails
+	for _, r := range requests {
+		// if a test name was provided, skip this test request if it does not match.
+		if testname != "" && testname != r.Name {
+			continue
+		}
+
+		currentRequest++
+		err := request(r, currentRequest, vars, headers)
+		if err != nil {
+			log.Println("  ", err)
+			failCount++
+		}
+	}
+	return currentRequest, failCount
 }
 
 func main() {
@@ -76,7 +126,7 @@ func main() {
 	// additional output will be provided by each request.
 	// TODO: handle multiple test suites
 	log.Println("Running tests...")
-	totalRequests, failCount := runRequests(set.Requests, set.Environment, testname)
+	totalRequests, failCount := runRequests(set.Requests, set.Vars, set.Headers, testname)
 
 	log.Println("Total requests:", totalRequests)
 
@@ -84,59 +134,4 @@ func main() {
 		log.Fatalf("FAIL  %s (%v requests, %v failed)", filename, totalRequests, failCount)
 	}
 	log.Printf("PASSED  %s (%v requests)", filename, totalRequests)
-}
-
-// readTestDefinition reads a yaml file of test requests
-// and returns a TestSet.  If an error occurs while reading the file
-// or unmarshaling yaml, an empty test set and an error will be returned.
-func readTestDefinition(filename string) (TestSet, error) {
-	set := TestSet{}
-
-	// Read in a yaml file containing test specs
-	file, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return TestSet{}, fmt.Errorf("File open error %v ", err)
-	}
-
-	// process template tags.  a period will be pre-pended to the argument: {{ myVar }} becomes {{ .myVar }}
-	// so that the text/template package can process them.
-	r, err := regexp.Compile(`{{\s*(\w+)\s*}}`)
-	if err != nil {
-		return TestSet{}, errors.New("error processing {{ template }} tags. Please double check input file")
-	}
-	file = r.ReplaceAll(file, []byte(`{{.$1}}`))
-
-	// convert yaml to structs.
-	// the output should be a single TestSet with nested Request structs.
-	err = yaml.Unmarshal(file, &set)
-	if err != nil {
-		return TestSet{}, fmt.Errorf("Unmarshal: %v", err)
-	}
-
-	return set, nil
-}
-
-// runRequests accepts a set of Request objects and calls the request() function
-// for each one. Since requests are expected to fail often, errors are not passed
-// up to the calling function, but instead reported to output, tallied
-// and the total request & error counts returned at the end of the run.
-func runRequests(requests []Request, env Environment, testname string) (int, int) {
-	failCount := 0
-	currentRequest := 0
-
-	// iterate through requests and keep track of test fails
-	for _, r := range requests {
-		// if a test name was provided, skip this test request if it does not match.
-		if testname != "" && testname != r.Name {
-			continue
-		}
-
-		currentRequest++
-		err := request(r, currentRequest, env)
-		if err != nil {
-			log.Println("  ", err)
-			failCount++
-		}
-	}
-	return currentRequest, failCount
 }

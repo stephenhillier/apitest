@@ -13,14 +13,14 @@ import (
 
 // request makes an http client request and checks the response body and response status
 // against any Expect conditions provided
-func request(request Request, count int, env Environment) error {
+func request(request Request, count int, vars map[string]interface{}, defaultHeaders map[string]string) error {
 
 	method := strings.ToUpper(request.Method)
 	expect := request.Expect
 
 	// setRequestVars will use Go's text templates to replace values in the URL and expect specs
 	// with provided values in the envMap
-	url, headers, err := setRequestVars(request.URL, env.Headers, env.Vars)
+	url, headers, err := setRequestVars(request.URL, defaultHeaders, vars)
 	if err != nil {
 		return err
 	}
@@ -87,8 +87,8 @@ func request(request Request, count int, env Environment) error {
 	}
 
 	// Set user vars (defined by a `set:` block in the request spec)
-	for _, v := range request.SetVars {
-		env.Vars[v.Name] = fmt.Sprintf("%v", body[v.Key])
+	for k, v := range request.SetVars {
+		vars[k] = fmt.Sprintf("%v", body[v])
 	}
 
 	if failCount > 0 {

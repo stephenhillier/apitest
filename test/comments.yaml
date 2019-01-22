@@ -1,10 +1,9 @@
-environment:
-  vars:
-    host: https://jsonplaceholder.typicode.com
-    token: secret123
-  headers:
-    Content-Type: application/json
-    Authorization: Bearer {{token}}
+vars:
+  host: https://jsonplaceholder.typicode.com
+  token: secret123
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{token}}
 requests:
   - name: Add a comment
     url: "{{host}}/comments"
@@ -14,8 +13,7 @@ requests:
     expect:
       status: 201
     set:
-      - var: created_comment
-        from: id
+      created_comment: id
   - name: Get single comment
     url: "{{host}}/comments/1" # jsonplaceholder doesn't support getting back the POST'ed comment (it 404's)
     method: get

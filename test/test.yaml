@@ -1,9 +1,8 @@
-environment:
-  vars:
-    host: https://jsonplaceholder.typicode.com
-    token: secret123
-  headers:
-    Authorization: Bearer {{token}}
+vars:
+  host: https://jsonplaceholder.typicode.com
+  token: secret123
+headers:
+  Authorization: Bearer {{token}}
 requests:
   - name: Todo list
     url: "{{host}}/todos/1"
