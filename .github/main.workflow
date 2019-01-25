@@ -4,13 +4,13 @@ workflow "Run tests" {
 }
 
 action "Lint" {
-  uses = "stefanprodan/gh-actions/golang"
+  uses = "stefanprodan/gh-actions/golang@master"
   args = "fmt"
 }
 
 action "Test" {
   needs = ["Lint"]
-  uses = "stefanprodan/gh-actions/golang"
+  uses = "stefanprodan/gh-actions/golang@master"
   args = "test"
 }
 
