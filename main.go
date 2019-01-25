@@ -56,44 +56,6 @@ type UserVar struct {
 	Name string `yaml:"var"`
 }
 
-func main() {
-	var filename string
-	var testname string
-	var userVars []string
-	flag.StringVarP(&filename, "file", "f", "", "yaml file containing a list of test requests")
-	flag.StringVarP(&testname, "test", "t", "", "the name of a single test to run (use quotes if name has spaces)")
-	flag.StringSliceVarP(&userVars, "env", "e", []string{}, "variables to add to the test environment")
-	flag.Parse()
-
-	if filename == "" {
-		log.Fatal("Usage:  apitest -f test.yaml")
-	}
-
-	// read in test definitions from a provided yaml file
-	set, err := readTestDefinition(filename)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = set.Environment.processEnvVars(userVars)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// run the set of tests and exit the program.
-	// additional output will be provided by each request.
-	// TODO: handle multiple test suites
-	log.Println("Running tests...")
-	totalRequests, failCount := runRequests(set.Requests, set.Environment, testname)
-
-	log.Println("Total requests:", totalRequests)
-
-	if failCount > 0 {
-		log.Fatalf("FAIL  %s (%v requests, %v failed)", filename, totalRequests, failCount)
-	}
-	log.Printf("PASSED  %s (%v requests)", filename, totalRequests)
-}
-
 // readTestDefinition reads a yaml file of test requests
 // and returns a TestSet.  If an error occurs while reading the file
 // or unmarshaling yaml, an empty test set and an error will be returned.
@@ -150,10 +112,13 @@ func runRequests(requests []Request, env Environment, testname string) (int, int
 }
 
 // processEnvVars iterates through userVars provided through the command line
-// and puts valid vars (in the form -e var="my var" or -e token=$API_TOKEN)
+// (in the form -e myvar="my var" or -e token=$API_TOKEN) and puts them
+// into the test environment. They can be accessed through template tags
+// e.g. {{ myvar }}
 func (env Environment) processEnvVars(userVars []string) error {
 
 	for _, s := range userVars {
+		// key/values separated by `=` are split and put into the map of env variables (env.Vars)
 		pair := strings.Split(s, "=")
 		if len(pair) != 2 {
 			return errors.New("Error processing env vars.  Usage example: -e myvar=$MYVAR -e anothervar=$MYVAR2")
@@ -161,4 +126,44 @@ func (env Environment) processEnvVars(userVars []string) error {
 		env.Vars[pair[0]] = pair[1]
 	}
 	return nil
+}
+
+func main() {
+	var filename string
+	var testname string
+	var userVars []string
+	flag.StringVarP(&filename, "file", "f", "", "yaml file containing a list of test requests")
+	flag.StringVarP(&testname, "test", "t", "", "the name of a single test to run (use quotes if name has spaces)")
+	flag.StringSliceVarP(&userVars, "env", "e", []string{}, "variables to add to the test environment e.g. myvar=test123")
+	flag.Parse()
+
+	if filename == "" {
+		log.Fatal("No file specified. Usage:  apitest -f test.yaml")
+	}
+
+	// read in test definitions from a provided yaml file
+	set, err := readTestDefinition(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// set variables in the test environment to values provided with the -e CLI flag.
+	// these are starting values; it is possible to update them during a test run.
+	err = set.Environment.processEnvVars(userVars)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// run the set of tests and exit the program.
+	// additional output will be provided by each request.
+	// TODO: handle multiple test suites
+	log.Println("Running tests...")
+	totalRequests, failCount := runRequests(set.Requests, set.Environment, testname)
+
+	log.Println("Total requests:", totalRequests)
+
+	if failCount > 0 {
+		log.Fatalf("FAIL  %s (%v requests, %v failed)", filename, totalRequests, failCount)
+	}
+	log.Printf("PASSED  %s (%v requests)", filename, totalRequests)
 }
