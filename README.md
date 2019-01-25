@@ -9,13 +9,15 @@ Define requests in YAML.  [See the test spec properties](#test-spec-properties) 
 
 #### Complete example
 
+`apitest -f test.yaml -e token=secret123`
+
 ```yaml
+# test.yaml
 environment:
   vars:
-    host: http://localhost:8000 # {{host}} in request URLs will be replaced with this value
-    token: secret123
-  headers:
-    Authorization: Bearer {{token}} # all requests will include this header
+    host: http://localhost:8000 # {{host}} will be replaced with this value
+  headers: # all requests will include headers defined here
+    Authorization: Bearer {{token}} # token was passed with the -e flag.
 requests:
   - name: Add a comment
     url: "{{host}}/comments"
@@ -109,6 +111,12 @@ requests:
 ### Command line
 
 `apitest -f input.yaml`
+
+Arguments:
+
+* `--file` `-f`: specify a file containing test specs. Example: `-f test/test.yaml`
+* `--env` `-e`: define variables for the test environment. Example: `-e myvar=test123`
+* `--test` `-t`: specify the name of a single test to run (use quotes if the name contains spaces). Example: `-t "Todo list"`
 
 ### GitHub Actions
 

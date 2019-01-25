@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"regexp"
+	"strings"
 
 	flag "github.com/spf13/pflag"
 	"gopkg.in/yaml.v2"
@@ -58,8 +59,10 @@ type UserVar struct {
 func main() {
 	var filename string
 	var testname string
+	var userVars []string
 	flag.StringVarP(&filename, "file", "f", "", "yaml file containing a list of test requests")
 	flag.StringVarP(&testname, "test", "t", "", "the name of a single test to run (use quotes if name has spaces)")
+	flag.StringSliceVarP(&userVars, "env", "e", []string{}, "variables to add to the test environment")
 	flag.Parse()
 
 	if filename == "" {
@@ -69,7 +72,12 @@ func main() {
 	// read in test definitions from a provided yaml file
 	set, err := readTestDefinition(filename)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
+	}
+
+	err = set.Environment.processEnvVars(userVars)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	// run the set of tests and exit the program.
@@ -99,7 +107,7 @@ func readTestDefinition(filename string) (TestSet, error) {
 	}
 
 	// process template tags.  a period will be pre-pended to the argument: {{ myVar }} becomes {{ .myVar }}
-	// so that the text/template package can process them.
+	// so that the text/template package can replace them with variables.
 	r, err := regexp.Compile(`{{\s*(\w+)\s*}}`)
 	if err != nil {
 		return TestSet{}, errors.New("error processing {{ template }} tags. Please double check input file")
@@ -139,4 +147,18 @@ func runRequests(requests []Request, env Environment, testname string) (int, int
 		}
 	}
 	return currentRequest, failCount
+}
+
+// processEnvVars iterates through userVars provided through the command line
+// and puts valid vars (in the form -e var="my var" or -e token=$API_TOKEN)
+func (env Environment) processEnvVars(userVars []string) error {
+
+	for _, s := range userVars {
+		pair := strings.Split(s, "=")
+		if len(pair) != 2 {
+			return errors.New("Error processing env vars.  Usage example: -e myvar=$MYVAR -e anothervar=$MYVAR2")
+		}
+		env.Vars[pair[0]] = pair[1]
+	}
+	return nil
 }
