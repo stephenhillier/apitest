@@ -1,5 +1,5 @@
 # apitest
-A lightweight API testing tool that can be used [from the command line](#command-line) or in a container based pipeline like [GitHub Actions](#github-actions).
+Test the behavior of an HTTP-based REST API [from the command line](#command-line) or in a container based pipeline like [GitHub Actions](#github-actions).
 
 ## Usage
 

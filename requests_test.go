@@ -89,7 +89,8 @@ func TestRequestSingle(t *testing.T) {
 	// rewrite the "host" variable to be the mock server
 	set.Environment.Vars["host"] = server.URL
 
-	// this is the test request name to try
+	// name of the test in test.yaml to run.  All other tests not matching
+	// this name should be skipped.
 	testName := "Todo list"
 
 	// this is fragile, and will fail if more requests are added to the test.yaml file
@@ -169,6 +170,28 @@ func TestNonStrictJSONComparison(t *testing.T) {
 		testCase{Value1: "123", Value2: "123", ExpectEqual: true},
 		testCase{Value1: 123, Value2: "123", ExpectEqual: true},
 		testCase{Value1: "1234", Value2: "12345", ExpectEqual: false},
+		testCase{
+			Value1: map[string]interface{}{
+				"num":    12345,
+				"string": "test",
+			},
+			Value2: map[string]interface{}{
+				"num":    12345,
+				"string": "test",
+			},
+			ExpectEqual: true,
+		},
+		testCase{
+			Value1: map[string]interface{}{
+				"num":    12345,
+				"string": "test",
+			},
+			Value2: map[string]interface{}{
+				"num":    54321,
+				"string": "testing",
+			},
+			ExpectEqual: false,
+		},
 	}
 
 	for _, c := range cases {
