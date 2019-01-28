@@ -108,6 +108,10 @@ requests:
 
 [See the full example](#complete-example) for more on how test specs can be defined using these properties.
 
+### Limitations
+
+Response body assertions:  only flat JSON schemas are supported
+
 ### Command line
 
 `apitest -f input.yaml`
@@ -117,6 +121,7 @@ Arguments:
 * `--file` `-f`: specify a file containing test specs. Example: `-f test/test.yaml`
 * `--env` `-e`: define variables for the test environment. Example: `-e myvar=test123`
 * `--test` `-t`: specify the name of a single test to run (use quotes if the name contains spaces). Example: `-t "Todo list"`
+* `--verbose` `-v`: verbose request & response logging.  Output is currently not pretty.
 
 ### GitHub Actions
 
