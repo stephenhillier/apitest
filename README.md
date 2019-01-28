@@ -108,6 +108,48 @@ requests:
 
 [See the full example](#complete-example) for more on how test specs can be defined using these properties.
 
+
+### Logging in / Retrieving tokens
+
+Your first request can be to a token endpoint:
+
+```sh
+apitest -f todos.yaml -e auth_id=$AUTH_ID -e auth_secret=$AUTH_SECRET
+```
+
+```yaml
+environment:
+  vars:
+    host: https://example.com
+    auth_url: https://example.com/oauth/token
+    auth_audience: https://example.com
+  headers:
+    Content-Type: application/json
+    Authorization: Bearer {{auth_token}}
+requests:
+  - name: Log in
+    url: "{{auth_url}}"
+    method: post
+    body:
+      client_id: "{{auth_id}}"
+      client_secret: "{{auth_secret}}"
+      audience: "{{auth_audience}}"
+      grant_type: client_credentials
+    expect:
+      status: 200
+    set:
+      - var: auth_token # set the {{auth_token}} here
+        from: access_token
+  - name: Create todo as authenticated user
+    url: "{{host}}/api/v1/todos"
+    method: post
+    body:
+      title: "Pick up groceries"
+    expect:
+      status: 201
+```
+
+
 ### Limitations
 
 Response body assertions:  only flat JSON schemas are supported
