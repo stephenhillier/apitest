@@ -13,14 +13,25 @@ import (
 
 // request makes an http client request and checks the response body and response status
 // against any Expect conditions provided
-func request(request Request, count int, env Environment) error {
+func request(request Request, count int, env Environment, verbose bool) error {
 
 	method := strings.ToUpper(request.Method)
 	expect := request.Expect
 
-	// setRequestVars will use Go's text templates to replace values in the URL and expect specs
-	// with provided values in the envMap
-	url, headers, err := setRequestVars(request.URL, env.Headers, env.Vars)
+	// replace template tags/variables in the URL
+	url, err := replaceURLVars(request.URL, env.Vars)
+	if err != nil {
+		return err
+	}
+
+	// copy original headers into a new map
+	headers := make(map[string]string)
+	for k, v := range env.Headers {
+		headers[k] = v
+	}
+
+	// replace variables in the headers
+	headers, err = setRequestHeaders(headers, env.Vars)
 	if err != nil {
 		return err
 	}
@@ -28,11 +39,19 @@ func request(request Request, count int, env Environment) error {
 	log.Printf("%v. %s", count, request.Name)
 	log.Println(" ", method, url)
 
-	reqBody, err := json.Marshal(request.Body)
+	// process template tags/variables in the request body and
+	// store as a new variable
+	bodyJSON, err := replaceBodyVars(request.Body, env.Vars)
+	if err != nil {
+		return err
+	}
+
+	reqBody, err := json.Marshal(bodyJSON)
 	if err != nil {
 		return errors.New("error serializing request body as JSON")
 	}
 
+	// replace variables in the request body
 	bodyBuffer := bytes.NewBuffer(reqBody)
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, bodyBuffer)
@@ -42,6 +61,10 @@ func request(request Request, count int, env Environment) error {
 
 	for k, v := range headers {
 		req.Header.Add(k, v)
+	}
+
+	if verbose {
+		log.Println(req)
 	}
 
 	resp, err := client.Do(req)
@@ -86,6 +109,10 @@ func request(request Request, count int, env Environment) error {
 
 	}
 
+	if verbose {
+		log.Println(body)
+	}
+
 	// Set user vars (defined by a `set:` block in the request spec)
 	for _, v := range request.SetVars {
 		env.Vars[v.Name] = fmt.Sprintf("%v", body[v.Key])
@@ -99,13 +126,12 @@ func request(request Request, count int, env Environment) error {
 	return nil
 }
 
-// setRequestVars takes a url, header set and a map of variables and modifies them according to the
-// variable map, which contains some user defined values (or automatically updated values).
-// it returns back a new url and headers with any "template tags", e.g. {{ }}, replaced.
-func setRequestVars(url string, headers map[string]string, vars map[string]interface{}) (string, map[string]string, error) {
+// replaceVars takes a string with template tags and a map of variables and uses the
+// text/template package to replace the template variables.
+// It returns back a new string.
+func replaceURLVars(url string, vars map[string]interface{}) (string, error) {
 
 	var urlBuffer bytes.Buffer
-	var headerBuffer bytes.Buffer
 
 	// URL template tag variable replacement
 	// parse URL string with text/template, and return a new
@@ -113,40 +139,75 @@ func setRequestVars(url string, headers map[string]string, vars map[string]inter
 	// vars map.
 	urlTemplate, err := template.New("url").Parse(url)
 	if err != nil {
-		return url, headers, err
+		return url, err
 	}
 
 	err = urlTemplate.Execute(&urlBuffer, vars)
 	if err != nil {
-		return url, headers, err
+		return url, err
 	}
 	url = urlBuffer.String()
 
-	// Replace all variables in each header.
-	// the headers map is stringified first, then variables are replaced,
-	// and then the headers are marshalled back to a map[string]string.
-	// This is probably inefficient but is flexible
+	return url, nil
+}
+
+// setRequestHeaders replaces all variables in each header.
+// the headers map is stringified first, then variables are replaced,
+// and then the headers are marshalled back to a map[string]string.
+func setRequestHeaders(headers map[string]string, vars map[string]interface{}) (map[string]string, error) {
+
+	var headerBuffer bytes.Buffer
+
 	headerJSON, err := json.Marshal(headers)
 	if err != nil {
-		return url, headers, err
+		return headers, err
 	}
 
 	headerTemplate, err := template.New("header").Parse(string(headerJSON))
 	if err != nil {
-		return url, headers, err
+		return headers, err
 	}
 
 	err = headerTemplate.Execute(&headerBuffer, vars)
 	if err != nil {
-		return url, headers, err
+		return headers, err
 	}
 
 	err = json.Unmarshal(headerBuffer.Bytes(), &headers)
 	if err != nil {
-		return url, headers, err
+		return headers, err
 	}
 
-	return url, headers, nil
+	return headers, nil
+}
+
+// replaceBodyVars replaces all variables in the request body.
+// interface{} is used here due to the unknown schema in the test spec file.
+func replaceBodyVars(body map[string]interface{}, vars map[string]interface{}) (map[string]interface{}, error) {
+
+	var bodyBuffer bytes.Buffer
+
+	bodyJSON, err := json.Marshal(body)
+	if err != nil {
+		return body, err
+	}
+
+	headerTemplate, err := template.New("body").Parse(string(bodyJSON))
+	if err != nil {
+		return body, err
+	}
+
+	err = headerTemplate.Execute(&bodyBuffer, vars)
+	if err != nil {
+		return body, err
+	}
+
+	err = json.Unmarshal(bodyBuffer.Bytes(), &body)
+	if err != nil {
+		return body, err
+	}
+
+	return body, nil
 }
 
 // checkJSONResponse compares two values of arbitrary type.

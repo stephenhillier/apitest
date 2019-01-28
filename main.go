@@ -90,7 +90,7 @@ func readTestDefinition(filename string) (TestSet, error) {
 // for each one. Since requests are expected to fail often, errors are not passed
 // up to the calling function, but instead reported to output, tallied
 // and the total request & error counts returned at the end of the run.
-func runRequests(requests []Request, env Environment, testname string) (int, int) {
+func runRequests(requests []Request, env Environment, testname string, verbose bool) (int, int) {
 	failCount := 0
 	currentRequest := 0
 
@@ -102,7 +102,7 @@ func runRequests(requests []Request, env Environment, testname string) (int, int
 		}
 
 		currentRequest++
-		err := request(r, currentRequest, env)
+		err := request(r, currentRequest, env, verbose)
 		if err != nil {
 			log.Println("  ", err)
 			failCount++
@@ -132,8 +132,10 @@ func main() {
 	var filename string
 	var testname string
 	var userVars []string
+	var verbose bool
 	flag.StringVarP(&filename, "file", "f", "", "yaml file containing a list of test requests")
 	flag.StringVarP(&testname, "test", "t", "", "the name of a single test to run (use quotes if name has spaces)")
+	flag.BoolVarP(&verbose, "verbose", "v", false, "verbose mode: print response body")
 	flag.StringSliceVarP(&userVars, "env", "e", []string{}, "variables to add to the test environment e.g. myvar=test123")
 	flag.Parse()
 
@@ -158,7 +160,7 @@ func main() {
 	// additional output will be provided by each request.
 	// TODO: handle multiple test suites
 	log.Println("Running tests...")
-	totalRequests, failCount := runRequests(set.Requests, set.Environment, testname)
+	totalRequests, failCount := runRequests(set.Requests, set.Environment, testname, verbose)
 
 	log.Println("Total requests:", totalRequests)
 

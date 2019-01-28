@@ -64,7 +64,7 @@ func TestRequestSet(t *testing.T) {
 	// todo:  rework test to focus more on logic, less on yaml file staying the same.
 	expectedTotal, expectedFails := 2, 0
 	// the third argument is the test request name to run, and an empty string means all tests.
-	total, fails := runRequests(set.Requests, set.Environment, "")
+	total, fails := runRequests(set.Requests, set.Environment, "", false)
 
 	if total != expectedTotal {
 		t.Errorf("Expected '%v', received '%v'", expectedTotal, total)
@@ -96,7 +96,7 @@ func TestRequestSingle(t *testing.T) {
 	// this is fragile, and will fail if more requests are added to the test.yaml file
 	// todo:  rework test to focus more on logic, less on yaml file staying the same.
 	expectedTotal, expectedFails := 1, 0
-	total, fails := runRequests(set.Requests, set.Environment, testName)
+	total, fails := runRequests(set.Requests, set.Environment, testName, false)
 
 	if total != expectedTotal {
 		t.Errorf("Expected '%v', received '%v'", expectedTotal, total)
@@ -121,10 +121,15 @@ func TestSetRequestVars(t *testing.T) {
 	testVars["token"] = "token"
 	expectedParsedHeader := `Bearer token`
 
-	parsedURL, parsedHeaders, err := setRequestVars(url, testHeaders, testVars)
+	parsedURL, err := replaceURLVars(url, testVars)
 
 	if err != nil {
-		t.Error("error trying to parse url and headers")
+		t.Error("error trying to parse url")
+	}
+
+	parsedHeaders, err := setRequestHeaders(testHeaders, testVars)
+	if err != nil {
+		t.Error("error trying to parse headers")
 	}
 
 	if parsedHeaders["Authorization"] != expectedParsedHeader {
@@ -170,28 +175,6 @@ func TestNonStrictJSONComparison(t *testing.T) {
 		testCase{Value1: "123", Value2: "123", ExpectEqual: true},
 		testCase{Value1: 123, Value2: "123", ExpectEqual: true},
 		testCase{Value1: "1234", Value2: "12345", ExpectEqual: false},
-		testCase{
-			Value1: map[string]interface{}{
-				"num":    12345,
-				"string": "test",
-			},
-			Value2: map[string]interface{}{
-				"num":    12345,
-				"string": "test",
-			},
-			ExpectEqual: true,
-		},
-		testCase{
-			Value1: map[string]interface{}{
-				"num":    12345,
-				"string": "test",
-			},
-			Value2: map[string]interface{}{
-				"num":    54321,
-				"string": "testing",
-			},
-			ExpectEqual: false,
-		},
 	}
 
 	for _, c := range cases {
