@@ -149,10 +149,26 @@ requests:
       status: 201
 ```
 
+### jq style JSON parsing
 
-### Limitations
+Response body checking (the `expect` block) now supports jq style selectors:
 
-Response body assertions:  only flat JSON schemas are supported
+* `.foo` value at key
+* `.foo.bar` value at a nested key
+* `.foo.[0]` value at specified index of array
+
+For convenience, the leading `.` can be omitted.
+
+Example:
+
+```yaml
+  - name: Get customer orders
+    url: "{{host}}/api/v1/orders"
+    method: get
+    expect:
+      values:
+        customer.name: Bill
+```
 
 ### Command line
 
@@ -182,3 +198,7 @@ See the `.github/main.workflow` file in this repo for a working example.
 `go get github.com/stephenhillier/apitest`
 
 `go test`
+
+## Credits
+
+https://github.com/savaki/jq - jq syntax

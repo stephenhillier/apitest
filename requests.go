@@ -2,13 +2,17 @@ package main
 
 import (
 	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
 	"text/template"
+
+	"github.com/savaki/jq"
 )
 
 // request makes an http client request and checks the response body and response status
@@ -85,11 +89,10 @@ func request(request Request, count int, env Environment, verbose bool) error {
 		return errors.New("response body not JSON, skipping JSON value checks")
 	}
 
-	body := make(map[string]interface{})
-	err = json.NewDecoder(resp.Body).Decode(&body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Println(err)
-		return fmt.Errorf("ERROR %s %s could not decode response body", method, url)
+		return fmt.Errorf("ERROR %s %s could not read response body", method, url)
 	}
 
 	failCount := 0
@@ -97,9 +100,7 @@ func request(request Request, count int, env Environment, verbose bool) error {
 	// Check for JSON values
 	for k, v := range expect.Values {
 
-		jsonValue := body[k]
-
-		err := checkJSONResponse(jsonValue, v, request.Expect.Strict)
+		err := checkJSONResponse(body, k, v, request.Expect.Strict)
 		if err != nil {
 			failCount++
 			log.Println("  FAIL,", k, err)
@@ -109,13 +110,21 @@ func request(request Request, count int, env Environment, verbose bool) error {
 
 	}
 
+	//
+
+	bodyMap := make(map[string]interface{})
+	err = json.Unmarshal(body, &bodyMap)
+	if err != nil {
+		return fmt.Errorf("ERROR %s %s could not decode response body", method, url)
+	}
+
 	if verbose {
-		log.Println(body)
+		log.Println(bodyMap)
 	}
 
 	// Set user vars (defined by a `set:` block in the request spec)
 	for _, v := range request.SetVars {
-		env.Vars[v.Name] = fmt.Sprintf("%v", body[v.Key])
+		env.Vars[v.Name] = fmt.Sprintf("%v", bodyMap[v.Key])
 	}
 
 	if failCount > 0 {
@@ -213,22 +222,49 @@ func replaceBodyVars(body map[string]interface{}, vars map[string]interface{}) (
 // checkJSONResponse compares two values of arbitrary type.
 // The values are considered equal if their string representation is the same (no type comparison)
 // This could be made more strict by directly comparing the interface{} values.
-func checkJSONResponse(value interface{}, expectedValue interface{}, strict bool) error {
+func checkJSONResponse(body []byte, selector string, expectedValue interface{}, strict bool) error {
 
-	// use the Sprintf method to convert our value and expectedValue to strings so they can be
-	// directly compared.
-	sValue := fmt.Sprintf("%v", value)
-	sExpected := fmt.Sprintf("%v", expectedValue)
+	if c := fmt.Sprintf("%c", selector[0]); c != "." {
+		selector = "." + selector
+	}
+
+	op, err := jq.Parse(selector)
+	if err != nil {
+		return fmt.Errorf("error processing selector %s. Use jq format: e.g. foo or .foo.bar or foo.bar (all valid)", selector)
+	}
+
+	value, err := op.Apply(body)
+	if err != nil {
+		return fmt.Errorf("error finding value for key selector %s. Key may not exist. Hint: Use jq format: e.g. foo or .foo.bar or foo.bar (all valid)", selector)
+	}
 
 	if strict {
-		if value != expectedValue {
-			return fmt.Errorf("expected: %v (%T) received: %v (%T)", expectedValue, expectedValue, value, value)
+		var strictIValue interface{}
+		if err := json.Unmarshal(value, &strictIValue); err != nil {
+			return fmt.Errorf("could not decode value from key %s", selector)
+		}
+
+		strictValue := fmt.Sprintf("%s", strictIValue)
+		strictExpected := fmt.Sprintf("%s", expectedValue)
+
+		if strictValue != strictExpected {
+			return fmt.Errorf("expected: %v received: %v", strictExpected, strictValue)
 		}
 
 		return nil
 	}
 
 	// not strict: compare against string representation of value
+
+	var iValue interface{}
+	if err := json.Unmarshal(value, &iValue); err != nil {
+		return fmt.Errorf("could not decode value from key %s", selector)
+	}
+
+	sValue := fmt.Sprintf("%v", iValue)
+	sExpected := fmt.Sprintf("%v", expectedValue)
+
+	log.Println(sValue, sExpected)
 
 	if sValue != sExpected {
 		return fmt.Errorf("expected: %v received: %v", sExpected, sValue)
@@ -246,4 +282,15 @@ func contains(s []string, substring string) bool {
 		}
 	}
 	return false
+}
+
+// toBytes accepts any value and returns the byte representation
+func toBytes(key interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(key)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

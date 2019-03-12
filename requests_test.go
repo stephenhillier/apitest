@@ -143,44 +143,51 @@ func TestSetRequestVars(t *testing.T) {
 
 func TestStrictJSONComparison(t *testing.T) {
 	type testCase struct {
-		Value1      interface{}
-		Value2      interface{}
+		JSON        []byte
+		Key         string
+		Expected    interface{}
 		ExpectEqual bool
 	}
 
 	cases := []testCase{
-		testCase{Value1: 123, Value2: 123, ExpectEqual: true},
-		testCase{Value1: "123", Value2: "123", ExpectEqual: true},
-		testCase{Value1: 123, Value2: "123", ExpectEqual: false},
-		testCase{Value1: "1234", Value2: "12345", ExpectEqual: false},
+		// NOTE: entering typed values here is not the same as unmarshalling typed values
+		// from JSON/YAML. Numbers unmarshal to float64 (todo: verify) so for these test cases, they should
+		// be entered as floats, not integers.
+		testCase{JSON: []byte(`{"foo":123}`), Key: "foo", Expected: 123., ExpectEqual: true},
+		testCase{JSON: []byte(`{"foo":"234"}`), Key: "foo", Expected: "234", ExpectEqual: true},
+		testCase{JSON: []byte(`{"foo":345}`), Key: "foo", Expected: "345", ExpectEqual: false},
+		testCase{JSON: []byte(`{"foo":"1234"}`), Key: "foo", Expected: "12345", ExpectEqual: false},
 	}
 
 	for _, c := range cases {
-		err := checkJSONResponse(c.Value1, c.Value2, true)
+		err := checkJSONResponse(c.JSON, c.Key, c.Expected, true)
 		if (err == nil) != c.ExpectEqual {
-			t.Errorf("Comparison failed: %v (%T) == %v (%T) expected to be %v in 'strict' mode", c.Value1, c.Value1, c.Value2, c.Value2, c.ExpectEqual)
+			t.Errorf("failed: %s; expected key %s == %v to have been %v; %v", c.JSON, c.Key, c.Expected, c.ExpectEqual, err)
 		}
 	}
 }
 
 func TestNonStrictJSONComparison(t *testing.T) {
 	type testCase struct {
-		Value1      interface{}
-		Value2      interface{}
+		JSON        []byte
+		Key         string
+		Expected    interface{}
 		ExpectEqual bool
 	}
 
 	cases := []testCase{
-		testCase{Value1: 123, Value2: 123, ExpectEqual: true},
-		testCase{Value1: "123", Value2: "123", ExpectEqual: true},
-		testCase{Value1: 123, Value2: "123", ExpectEqual: true},
-		testCase{Value1: "1234", Value2: "12345", ExpectEqual: false},
+		testCase{JSON: []byte(`{"foo":123}`), Key: "foo", Expected: 123, ExpectEqual: true},
+		testCase{JSON: []byte(`{"foo":"123"}`), Key: "foo", Expected: "123", ExpectEqual: true},
+		testCase{JSON: []byte(`{"foo":123}`), Key: "foo", Expected: "123", ExpectEqual: true},
+		testCase{JSON: []byte(`{"foo":"1234"}`), Key: "foo", Expected: "12345", ExpectEqual: false},
+		testCase{JSON: []byte(`{"foo":{"bar":"12345", "unused":"54321"}}`), Key: "foo.bar", Expected: "12345", ExpectEqual: true},
+		testCase{JSON: []byte(`{"foo":{"bar":"12345"}}`), Key: "foo.bar", Expected: "asdf", ExpectEqual: false},
 	}
 
 	for _, c := range cases {
-		err := checkJSONResponse(c.Value1, c.Value2, false)
+		err := checkJSONResponse(c.JSON, c.Key, c.Expected, false)
 		if (err == nil) != c.ExpectEqual {
-			t.Errorf("Comparison failed: %v (%T) == %v (%T) expected to be %v in 'non-strict' mode", c.Value1, c.Value1, c.Value2, c.Value2, c.ExpectEqual)
+			t.Errorf("failed: %s; expected key %s == %v to have been %v; %v", c.JSON, c.Key, c.Expected, c.ExpectEqual, err)
 		}
 	}
 }
