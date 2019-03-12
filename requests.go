@@ -67,10 +67,6 @@ func request(request Request, count int, env Environment, verbose bool) error {
 		req.Header.Add(k, v)
 	}
 
-	if verbose {
-		log.Println(req)
-	}
-
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
@@ -110,21 +106,43 @@ func request(request Request, count int, env Environment, verbose bool) error {
 
 	}
 
-	//
+	// Set user vars (defined by a `set:` block in the request spec)
+	for _, v := range request.SetVars {
+		selector := v.Key
+		if c := fmt.Sprintf("%c", selector[0]); c != "." {
+			selector = "." + selector
+		}
 
-	bodyMap := make(map[string]interface{})
-	err = json.Unmarshal(body, &bodyMap)
+		op, err := jq.Parse(selector)
+		if err != nil {
+			return fmt.Errorf("error setting variable from selector %s. Use jq format: e.g. foo or .foo.bar or foo.bar (all valid)", selector)
+		}
+
+		value, err := op.Apply(body)
+		if err != nil {
+			return fmt.Errorf("error finding value for key %s to use as variable. Key may not exist. Hint: Use jq format: e.g. foo or .foo.bar or foo.bar (all valid)", selector)
+		}
+
+		var setValue interface{}
+		json.Unmarshal(value, &setValue)
+		env.Vars[v.Name] = setValue
+	}
+
+	// Handle verbose output (-v or --verbose flag) by unmarshalling to interface then marshalling
+	// to indented JSON format
+	var respBodyJSON interface{}
+	err = json.Unmarshal(body, &respBodyJSON)
 	if err != nil {
+		log.Println(err)
 		return fmt.Errorf("ERROR %s %s could not decode response body", method, url)
 	}
 
 	if verbose {
-		log.Println(bodyMap)
-	}
-
-	// Set user vars (defined by a `set:` block in the request spec)
-	for _, v := range request.SetVars {
-		env.Vars[v.Name] = fmt.Sprintf("%v", bodyMap[v.Key])
+		out, err := json.MarshalIndent(respBodyJSON, "", "  ")
+		if err != nil {
+			return fmt.Errorf("ERROR %s %s could not print response body in verbose mode", method, url)
+		}
+		log.Printf("%s", out)
 	}
 
 	if failCount > 0 {
