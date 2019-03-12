@@ -210,4 +210,6 @@ See the `.github/main.workflow` file in this repo for a working example.
 
 ## Credits
 
-https://github.com/savaki/jq - jq syntax
+* https://github.com/savaki/jq - jq syntax
+* gopkg.in/yaml.v2 - yaml parsing
+* github.com/spf13/pflag
