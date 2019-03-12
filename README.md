@@ -1,6 +1,15 @@
 # apitest
 Test the behavior of an HTTP-based REST API [from the command line](#command-line) or in a container based pipeline like [GitHub Actions](#github-actions).
 
+
+* [Defining test specs in YAML](#yaml-test-specs)
+  * [Complete example](#complete-example)
+* [Test specs syntax](#test-spec-properties)
+* [Logging in / retrieving tokens](#logging-in-/-retrieving-tokens)
+* [jq style queries (for nested JSON)](#jq-style-json-parsing)
+* [Command line usage](#command-line)
+* [GitHub Actions usage](#github-actions)
+
 ## Usage
 
 ### YAML test specs
