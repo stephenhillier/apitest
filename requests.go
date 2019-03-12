@@ -264,8 +264,6 @@ func checkJSONResponse(body []byte, selector string, expectedValue interface{}, 
 	sValue := fmt.Sprintf("%v", iValue)
 	sExpected := fmt.Sprintf("%v", expectedValue)
 
-	log.Println(sValue, sExpected)
-
 	if sValue != sExpected {
 		return fmt.Errorf("expected: %v received: %v", sExpected, sValue)
 	}

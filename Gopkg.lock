@@ -2,6 +2,17 @@
 
 
 [[projects]]
+  branch = "master"
+  digest = "1:45ed9e09a140c93e437e1e9634258040148f2cd18b28758a21b084002eca8c8c"
+  name = "github.com/savaki/jq"
+  packages = [
+    ".",
+    "scanner",
+  ]
+  pruneopts = "UT"
+  revision = "0e6baecebbf8a24a6590d3fc8232165008d6e5d8"
+
+[[projects]]
   digest = "1:c1b1102241e7f645bc8e0c22ae352e8f0dc6484b6cb4d132fa9f24174e0119e2"
   name = "github.com/spf13/pflag"
   packages = ["."]
@@ -21,6 +32,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/savaki/jq",
     "github.com/spf13/pflag",
     "gopkg.in/yaml.v2",
   ]
