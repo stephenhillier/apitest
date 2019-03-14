@@ -79,6 +79,18 @@ func request(request Request, count int, env Environment, verbose bool) error {
 		return fmt.Errorf("ERROR %s %s could not read response body", method, url)
 	}
 
+	failCount := 0
+
+	// Check that status code matches the expected value, return with an error message on fail
+	if resp.StatusCode != expect.Status {
+		if verbose {
+			log.Printf("%s", body)
+		}
+		return fmt.Errorf("  FAIL expected: %v received: %v", expect.Status, resp.StatusCode)
+	} else {
+		log.Printf("  ✓  status is %v", resp.StatusCode)
+	}
+
 	// if the response is not JSON, end the request here.
 	if !contains(resp.Header["Content-Type"], "application/json") {
 		if verbose {
@@ -102,16 +114,6 @@ func request(request Request, count int, env Environment, verbose bool) error {
 			return fmt.Errorf("ERROR %s %s could not print response body in verbose mode", method, url)
 		}
 		log.Printf("%s", out)
-	}
-
-	failCount := 0
-
-	// Check that status code matches the expected value, return with an error message on fail
-	if resp.StatusCode != expect.Status {
-		log.Printf("  FAIL expected: %v received: %v", expect.Status, resp.StatusCode)
-		failCount++
-	} else {
-		log.Printf("  ✓  status is %v", resp.StatusCode)
 	}
 
 	// Check for JSON values
