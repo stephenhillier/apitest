@@ -73,25 +73,46 @@ func request(request Request, count int, env Environment, verbose bool) error {
 	}
 	defer resp.Body.Close()
 
-	// Check that status code matches the expected value, return with an error message on fail
-	if resp.StatusCode != expect.Status {
-		log.Printf("  FAIL expected: %v received: %v", expect.Status, resp.StatusCode)
-	} else {
-		log.Printf("  ✓  status is %v", resp.StatusCode)
-	}
-
-	// start checking JSON values, first checking that content type is application/json
-	if !contains(resp.Header["Content-Type"], "application/json") {
-		return errors.New("response body not JSON, skipping JSON value checks")
-	}
-
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Println(err)
 		return fmt.Errorf("ERROR %s %s could not read response body", method, url)
 	}
 
+	// if the response is not JSON, end the request here.
+	if !contains(resp.Header["Content-Type"], "application/json") {
+		if verbose {
+			log.Printf("%s", body)
+		}
+		return nil
+	}
+
+	// Handle verbose output (-v or --verbose flag) by unmarshalling to interface then marshalling
+	// to indented JSON format
+	var respBodyJSON interface{}
+	err = json.Unmarshal(body, &respBodyJSON)
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("ERROR %s %s could not decode response body", method, url)
+	}
+
+	if verbose {
+		out, err := json.MarshalIndent(respBodyJSON, "", "  ")
+		if err != nil {
+			return fmt.Errorf("ERROR %s %s could not print response body in verbose mode", method, url)
+		}
+		log.Printf("%s", out)
+	}
+
 	failCount := 0
+
+	// Check that status code matches the expected value, return with an error message on fail
+	if resp.StatusCode != expect.Status {
+		log.Printf("  FAIL expected: %v received: %v", expect.Status, resp.StatusCode)
+		failCount++
+	} else {
+		log.Printf("  ✓  status is %v", resp.StatusCode)
+	}
 
 	// Check for JSON values
 	for k, v := range expect.Values {
@@ -126,23 +147,6 @@ func request(request Request, count int, env Environment, verbose bool) error {
 		var setValue interface{}
 		json.Unmarshal(value, &setValue)
 		env.Vars[v.Name] = setValue
-	}
-
-	// Handle verbose output (-v or --verbose flag) by unmarshalling to interface then marshalling
-	// to indented JSON format
-	var respBodyJSON interface{}
-	err = json.Unmarshal(body, &respBodyJSON)
-	if err != nil {
-		log.Println(err)
-		return fmt.Errorf("ERROR %s %s could not decode response body", method, url)
-	}
-
-	if verbose {
-		out, err := json.MarshalIndent(respBodyJSON, "", "  ")
-		if err != nil {
-			return fmt.Errorf("ERROR %s %s could not print response body in verbose mode", method, url)
-		}
-		log.Printf("%s", out)
 	}
 
 	if failCount > 0 {
