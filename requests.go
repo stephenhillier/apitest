@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"text/template"
 
@@ -23,7 +24,7 @@ func request(request Request, count int, env Environment, verbose bool) error {
 	expect := request.Expect
 
 	// replace template tags/variables in the URL
-	url, err := replaceURLVars(request.URL, env.Vars)
+	reqURL, err := replaceURLVars(request.URL, env.Vars)
 	if err != nil {
 		return err
 	}
@@ -41,26 +42,52 @@ func request(request Request, count int, env Environment, verbose bool) error {
 	}
 
 	log.Printf("%v. %s", count, request.Name)
-	log.Println(" ", method, url)
+	log.Println(" ", method, reqURL)
 
-	// process template tags/variables in the request body and
-	// store as a new variable
-	bodyJSON, err := replaceBodyVars(request.Body, env.Vars)
-	if err != nil {
-		return err
-	}
-
-	reqBody, err := json.Marshal(bodyJSON)
-	if err != nil {
-		return errors.New("error serializing request body as JSON")
-	}
-
-	// replace variables in the request body
-	bodyBuffer := bytes.NewBuffer(reqBody)
+	// set up request and client
+	var req *http.Request
 	client := &http.Client{}
-	req, err := http.NewRequest(method, url, bodyBuffer)
-	if err != nil {
-		return err
+
+	// If values are passed in by the "urlencoded" field, treat the request
+	// as x-www-form-urlencoded
+	if len(request.URLEncoded) > 0 {
+
+		headers["Content-Type"] = "application/x-www-form-urlencoded"
+
+		form, err := replaceFormVars(request.URLEncoded, env.Vars)
+		if err != nil {
+			return err
+		}
+		formData := url.Values{}
+		for k, v := range form {
+			formData.Set(k, v)
+		}
+
+		req, err = http.NewRequest(method, reqURL, strings.NewReader(formData.Encode()))
+		if err != nil {
+			return err
+		}
+	} else {
+		headers["Content-Type"] = "application/json"
+
+		// process template tags/variables in the request body and
+		// store as a new variable
+		bodyJSON, err := replaceBodyVars(request.Body, env.Vars)
+		if err != nil {
+			return err
+		}
+
+		reqBody, err := json.Marshal(bodyJSON)
+		if err != nil {
+			return errors.New("error serializing request body as JSON")
+		}
+
+		// replace variables in the request body
+		bodyBuffer := bytes.NewBuffer(reqBody)
+		req, err = http.NewRequest(method, reqURL, bodyBuffer)
+		if err != nil {
+			return err
+		}
 	}
 
 	for k, v := range headers {
@@ -76,7 +103,7 @@ func request(request Request, count int, env Environment, verbose bool) error {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Println(err)
-		return fmt.Errorf("ERROR %s %s could not read response body", method, url)
+		return fmt.Errorf("ERROR %s %s could not read response body", method, reqURL)
 	}
 
 	failCount := 0
@@ -105,13 +132,13 @@ func request(request Request, count int, env Environment, verbose bool) error {
 	err = json.Unmarshal(body, &respBodyJSON)
 	if err != nil {
 		log.Println(err)
-		return fmt.Errorf("ERROR %s %s could not decode response body", method, url)
+		return fmt.Errorf("ERROR %s %s could not decode response body", method, reqURL)
 	}
 
 	if verbose {
 		out, err := json.MarshalIndent(respBodyJSON, "", "  ")
 		if err != nil {
-			return fmt.Errorf("ERROR %s %s could not print response body in verbose mode", method, url)
+			return fmt.Errorf("ERROR %s %s could not print response body in verbose mode", method, reqURL)
 		}
 		log.Printf("%s", out)
 	}
@@ -241,6 +268,34 @@ func replaceBodyVars(body map[string]interface{}, vars map[string]interface{}) (
 	}
 
 	return body, nil
+}
+
+// replaceFormVars replaces all variables in the urlencoded form block.
+func replaceFormVars(form map[string]string, vars map[string]interface{}) (map[string]string, error) {
+
+	var formBuffer bytes.Buffer
+
+	formJSON, err := json.Marshal(form)
+	if err != nil {
+		return form, err
+	}
+
+	headerTemplate, err := template.New("form").Parse(string(formJSON))
+	if err != nil {
+		return form, err
+	}
+
+	err = headerTemplate.Execute(&formBuffer, vars)
+	if err != nil {
+		return form, err
+	}
+
+	err = json.Unmarshal(formBuffer.Bytes(), &form)
+	if err != nil {
+		return form, err
+	}
+
+	return form, nil
 }
 
 // checkJSONResponse compares two values of arbitrary type.

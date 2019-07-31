@@ -31,12 +31,13 @@ type Environment struct {
 // Request is a request made against a URL to test the response.
 // The response will be checked against the conditions in the Expect struct
 type Request struct {
-	Name    string                 `yaml:"name"`
-	URL     string                 `yaml:"url"`
-	Method  string                 `yaml:"method"`
-	Body    map[string]interface{} `yaml:"body"`
-	Expect  Expect                 `yaml:"expect"`
-	SetVars []UserVar              `yaml:"set"`
+	Name       string                 `yaml:"name"`
+	URL        string                 `yaml:"url"`
+	Method     string                 `yaml:"method"`
+	URLEncoded map[string]string      `yaml:"urlencoded"`
+	Body       map[string]interface{} `yaml:"body"`
+	Expect     Expect                 `yaml:"expect"`
+	SetVars    []UserVar              `yaml:"set"`
 }
 
 // Expect is a test assertion.  The values provided will be checked against the request's response.
