@@ -46,7 +46,12 @@ func request(request Request, count int, env Environment, verbose bool) error {
 
 	// set up request and client
 	var req *http.Request
-	client := &http.Client{}
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			// Do not follow redirects
+			return http.ErrUseLastResponse
+		},
+	}
 
 	// If values are passed in by the "urlencoded" field, treat the request
 	// as x-www-form-urlencoded
