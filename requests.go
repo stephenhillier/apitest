@@ -50,17 +50,19 @@ func request(request Request, count int, env Environment, verbose bool) error {
 
 	// If values are passed in by the "urlencoded" field, treat the request
 	// as x-www-form-urlencoded
-	if len(request.URLEncoded) > 0 {
+	if request.ContentType == "urlencoded" ||
+		request.ContentType == "x-www-form-urlencoded" ||
+		request.ContentType == "application/x-www-form-urlencoded" {
 
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-		form, err := replaceFormVars(request.URLEncoded, env.Vars)
+		form, err := replaceBodyVars(request.Body, env.Vars)
 		if err != nil {
 			return err
 		}
 		formData := url.Values{}
 		for k, v := range form {
-			formData.Set(k, v)
+			formData.Set(k, fmt.Sprintf("%s", v))
 		}
 
 		req, err = http.NewRequest(method, reqURL, strings.NewReader(formData.Encode()))
@@ -268,34 +270,6 @@ func replaceBodyVars(body map[string]interface{}, vars map[string]interface{}) (
 	}
 
 	return body, nil
-}
-
-// replaceFormVars replaces all variables in the urlencoded form block.
-func replaceFormVars(form map[string]string, vars map[string]interface{}) (map[string]string, error) {
-
-	var formBuffer bytes.Buffer
-
-	formJSON, err := json.Marshal(form)
-	if err != nil {
-		return form, err
-	}
-
-	headerTemplate, err := template.New("form").Parse(string(formJSON))
-	if err != nil {
-		return form, err
-	}
-
-	err = headerTemplate.Execute(&formBuffer, vars)
-	if err != nil {
-		return form, err
-	}
-
-	err = json.Unmarshal(formBuffer.Bytes(), &form)
-	if err != nil {
-		return form, err
-	}
-
-	return form, nil
 }
 
 // checkJSONResponse compares two values of arbitrary type.
