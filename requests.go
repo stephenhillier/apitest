@@ -122,7 +122,7 @@ func request(request Request, count int, env Environment, verbose bool) error {
 		}
 		return fmt.Errorf("  FAIL expected: %v received: %v", expect.Status, resp.StatusCode)
 	} else {
-		log.Printf("  ✓  status is %v", resp.StatusCode)
+		log.Printf("  OK status is %v", resp.StatusCode)
 	}
 
 	// if the response is not JSON, end the request here.
