@@ -249,6 +249,6 @@ func runMonitor(requests []Request, env Environment, testname string, verbose bo
 			log.Printf("PASSED  %s (%v requests)", filename, totalRequests)
 		}
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Minute)
 	}
 }

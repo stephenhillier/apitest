@@ -224,6 +224,9 @@ apitest_requests_errors_total
 apitest_requests_total
 ```
 
+**Note**: the errors recorded denote assertion errors & tests that fail to run.  A request
+returning status 500 would be considered successful if the test spec had expect `status: 500`.
+
 ## Developing
 `go get github.com/stephenhillier/apitest`
 

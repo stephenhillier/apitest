@@ -24,8 +24,3 @@ requests:
       values:
         id: 1
         name: id labore ex et quam laborum
-  - name: Try to retrieve created comment
-    url: "{{host}}/comments/{{created_comment}}"
-    method: get
-    expect:
-      status: 404
