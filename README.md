@@ -19,7 +19,7 @@ Define requests in YAML.  [See the test spec properties](#test-spec-properties) 
 
 #### Complete example
 
-`apitest -f test.yaml -e token=secret123`
+`apitest -e token=secret123 test.yaml`
 
 ```yaml
 # test.yaml
@@ -182,16 +182,19 @@ Example:
 
 ### Command line
 
-`apitest -f input.yaml`
+Example: `apitest input.yaml`
 
 Arguments:
 
-* `--file` `-f`: specify a file containing test specs. Example: `-f test/test.yaml`
+* `--file` `-f`: specify a file containing test specs. Example: `-f test/test.yaml`. Note: the file may be also be the first non-flag argument e.g. `apitest --monitor --delay=60 test.yaml`
 * `--env` `-e`: define variables for the test environment. Example: `-e myvar=test123`
 * `--test` `-t`: specify the name of a single test to run (use quotes if the name contains spaces). Example: `-t "Todo list"`
 * `--verbose` `-v`: verbose request & response logging.  Output is currently not pretty.
+
+The following arguments apply to monitoring/metrics mode:
 * `--monitor` `-m`: enable monitoring mode (with metrics)
 * `--port` `-p`: port for metrics endpoint (monitoring mode only). The metrics endpoint is `/metrics`. Default: `2112`
+* `--delay` `-d`: delay (seconds) between automated test runs. Default: `300`
 
 ### GitHub Actions
 
@@ -199,7 +202,7 @@ Add a step to your workflow like this:
 ```
 action "Run API tests" {
   uses = "stephenhillier/apitest@master"
-  args = ["-f", "test/test.yaml"]
+  args = ["test/test.yaml"]
 }
 ```
 

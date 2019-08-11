@@ -165,13 +165,20 @@ func main() {
 	var verbose bool
 	var monitor bool
 	var listenPort int
+	var delay int
 	flag.StringVarP(&filename, "file", "f", "", "yaml file containing a list of test requests")
 	flag.StringVarP(&testname, "test", "t", "", "the name of a single test to run (use quotes if name has spaces)")
 	flag.BoolVarP(&verbose, "verbose", "v", false, "verbose mode: print response body")
 	flag.BoolVarP(&monitor, "monitor", "m", false, "turn on monitor mode to continually run checks")
-	flag.IntVarP(&listenPort, "port", "p", 2112, "port to start listener on (used with -monitor)")
+	flag.IntVarP(&listenPort, "port", "p", 2112, "port to start listener on (used with --monitor)")
 	flag.StringSliceVarP(&userVars, "env", "e", []string{}, "variables to add to the test environment e.g. myvar=test123")
+	flag.IntVarP(&delay, "delay", "d", 300, "delay (in seconds) between monitoring runs (used with --monitor). Default 300")
 	flag.Parse()
+
+	// user can enter filename as the first argument, or with the -f flag
+	if flag.NArg() > 0 && filename == "" {
+		filename = flag.Args()[0]
+	}
 
 	if filename == "" {
 		log.Fatal("No file specified. Usage:  apitest -f test.yaml")
@@ -225,7 +232,7 @@ func main() {
 	log.Println("Listening on port", listenPort)
 
 	// run monitoring loop
-	go runMonitor(set.Requests, set.Environment, testname, verbose, filename)
+	go runMonitor(set.Requests, set.Environment, testname, verbose, filename, delay)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
@@ -237,7 +244,9 @@ func main() {
 
 }
 
-func runMonitor(requests []Request, env Environment, testname string, verbose bool, filename string) {
+// runMonitor is used for monitoring mode and runs a continuous loop, checking the same
+// test suite over and over for the purpose of collecting metrics and monitoring endpoints.
+func runMonitor(requests []Request, env Environment, testname string, verbose bool, filename string, delay int) {
 	for {
 		totalRequests, failCount := runRequests(requests, env, testname, verbose, true)
 
@@ -249,6 +258,6 @@ func runMonitor(requests []Request, env Environment, testname string, verbose bo
 			log.Printf("PASSED  %s (%v requests)", filename, totalRequests)
 		}
 
-		time.Sleep(5 * time.Minute)
+		time.Sleep(time.Duration(delay) * time.Second)
 	}
 }
