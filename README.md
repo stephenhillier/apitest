@@ -5,10 +5,11 @@ Test the behavior of an HTTP-based REST API [from the command line](#command-lin
 * [Defining test specs in YAML](#yaml-test-specs)
   * [Complete example](#complete-example)
 * [Test specs syntax](#test-spec-properties)
-* [Logging in / retrieving tokens](#logging-in-/-retrieving-tokens)
+* [Logging in / retrieving tokens](#logging-in)
 * [jq style queries (for nested JSON)](#jq-style-json-parsing)
 * [Command line usage](#command-line)
 * [GitHub Actions usage](#github-actions)
+* [Prometheus usage](#prometheus-usage)
 
 ## Usage
 
@@ -118,7 +119,7 @@ requests:
 [See the full example](#complete-example) for more on how test specs can be defined using these properties.
 
 
-### Logging in / Retrieving tokens
+### Logging in
 
 Your first request can be to a token endpoint:
 
@@ -189,6 +190,8 @@ Arguments:
 * `--env` `-e`: define variables for the test environment. Example: `-e myvar=test123`
 * `--test` `-t`: specify the name of a single test to run (use quotes if the name contains spaces). Example: `-t "Todo list"`
 * `--verbose` `-v`: verbose request & response logging.  Output is currently not pretty.
+* `--monitor` `-m`: enable monitoring mode (with metrics)
+* `--port` `-p`: port for metrics endpoint (monitoring mode only). The metrics endpoint is `/metrics`. Default: `2112`
 
 ### GitHub Actions
 
@@ -202,6 +205,24 @@ action "Run API tests" {
 
 Replace `test/test.yaml` with the path to your yaml specs.
 See the `.github/main.workflow` file in this repo for a working example.
+
+
+### Prometheus
+
+apitest can be used with prometheus by setting the `--monitor` (or `-m`) flag.  `monitor` will
+set apitest to run in continuous mode, keeping track of request and error counts and request duration for every test.
+
+By default, the metrics are available at `localhost:2112/metrics`. The port is configurable with `--listenPort`.
+
+The following metrics are available with `hostname`, `path`, `method` and `name` (the test name in the yaml spec) labels:
+
+```
+apitest_requests_duration
+apitest_requests_duration_sum
+apitest_requests_duration_count
+apitest_requests_errors_total
+apitest_requests_total
+```
 
 ## Developing
 `go get github.com/stephenhillier/apitest`

@@ -64,7 +64,7 @@ func TestRequestSet(t *testing.T) {
 	// todo:  rework test to focus more on logic, less on yaml file staying the same.
 	expectedTotal, expectedFails := 2, 0
 	// the third argument is the test request name to run, and an empty string means all tests.
-	total, fails := runRequests(set.Requests, set.Environment, "", false)
+	total, fails := runRequests(set.Requests, set.Environment, "", false, false)
 
 	if total != expectedTotal {
 		t.Errorf("Expected '%v', received '%v'", expectedTotal, total)
@@ -96,7 +96,7 @@ func TestRequestSingle(t *testing.T) {
 	// this is fragile, and will fail if more requests are added to the test.yaml file
 	// todo:  rework test to focus more on logic, less on yaml file staying the same.
 	expectedTotal, expectedFails := 1, 0
-	total, fails := runRequests(set.Requests, set.Environment, testName, false)
+	total, fails := runRequests(set.Requests, set.Environment, testName, false, false)
 
 	if total != expectedTotal {
 		t.Errorf("Expected '%v', received '%v'", expectedTotal, total)

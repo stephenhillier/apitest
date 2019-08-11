@@ -12,21 +12,22 @@ import (
 	"net/url"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/savaki/jq"
 )
 
 // request makes an http client request and checks the response body and response status
 // against any Expect conditions provided
-func request(request Request, count int, env Environment, verbose bool) error {
-
+func request(request Request, count int, env Environment, verbose bool) (string, time.Duration, error) {
+	var duration time.Duration
 	method := strings.ToUpper(request.Method)
 	expect := request.Expect
 
 	// replace template tags/variables in the URL
 	reqURL, err := replaceURLVars(request.URL, env.Vars)
 	if err != nil {
-		return err
+		return reqURL, duration, err
 	}
 
 	// copy original headers into a new map
@@ -38,7 +39,7 @@ func request(request Request, count int, env Environment, verbose bool) error {
 	// replace variables in the headers
 	headers, err = setRequestHeaders(headers, env.Vars)
 	if err != nil {
-		return err
+		return reqURL, duration, err
 	}
 
 	log.Printf("%v. %s", count, request.Name)
@@ -63,7 +64,7 @@ func request(request Request, count int, env Environment, verbose bool) error {
 
 		form, err := replaceBodyVars(request.Body, env.Vars)
 		if err != nil {
-			return err
+			return reqURL, duration, err
 		}
 		formData := url.Values{}
 		for k, v := range form {
@@ -72,7 +73,7 @@ func request(request Request, count int, env Environment, verbose bool) error {
 
 		req, err = http.NewRequest(method, reqURL, strings.NewReader(formData.Encode()))
 		if err != nil {
-			return err
+			return reqURL, duration, err
 		}
 	} else {
 		headers["Content-Type"] = "application/json"
@@ -81,19 +82,19 @@ func request(request Request, count int, env Environment, verbose bool) error {
 		// store as a new variable
 		bodyJSON, err := replaceBodyVars(request.Body, env.Vars)
 		if err != nil {
-			return err
+			return reqURL, duration, err
 		}
 
 		reqBody, err := json.Marshal(bodyJSON)
 		if err != nil {
-			return errors.New("error serializing request body as JSON")
+			return reqURL, duration, errors.New("error serializing request body as JSON")
 		}
 
 		// replace variables in the request body
 		bodyBuffer := bytes.NewBuffer(reqBody)
 		req, err = http.NewRequest(method, reqURL, bodyBuffer)
 		if err != nil {
-			return err
+			return reqURL, duration, err
 		}
 	}
 
@@ -101,16 +102,18 @@ func request(request Request, count int, env Environment, verbose bool) error {
 		req.Header.Add(k, v)
 	}
 
+	t0 := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return reqURL, duration, err
 	}
 	defer resp.Body.Close()
+	duration = time.Since(t0)
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Println(err)
-		return fmt.Errorf("ERROR %s %s could not read response body", method, reqURL)
+		return reqURL, duration, fmt.Errorf("ERROR %s %s could not read response body", method, reqURL)
 	}
 
 	failCount := 0
@@ -120,17 +123,16 @@ func request(request Request, count int, env Environment, verbose bool) error {
 		if verbose {
 			log.Printf("%s", body)
 		}
-		return fmt.Errorf("  FAIL expected: %v received: %v", expect.Status, resp.StatusCode)
-	} else {
-		log.Printf("  OK status is %v", resp.StatusCode)
+		return reqURL, duration, fmt.Errorf("  FAIL expected: %v received: %v", expect.Status, resp.StatusCode)
 	}
+	log.Printf("  OK status is %v", resp.StatusCode)
 
 	// if the response is not JSON, end the request here.
 	if !contains(resp.Header["Content-Type"], "application/json") {
 		if verbose {
 			log.Printf("%s", body)
 		}
-		return nil
+		return reqURL, duration, nil
 	}
 
 	// Handle verbose output (-v or --verbose flag) by unmarshalling to interface then marshalling
@@ -139,13 +141,13 @@ func request(request Request, count int, env Environment, verbose bool) error {
 	err = json.Unmarshal(body, &respBodyJSON)
 	if err != nil {
 		log.Println(err)
-		return fmt.Errorf("ERROR %s %s could not decode response body", method, reqURL)
+		return reqURL, duration, fmt.Errorf("ERROR %s %s could not decode response body", method, reqURL)
 	}
 
 	if verbose {
 		out, err := json.MarshalIndent(respBodyJSON, "", "  ")
 		if err != nil {
-			return fmt.Errorf("ERROR %s %s could not print response body in verbose mode", method, reqURL)
+			return reqURL, duration, fmt.Errorf("ERROR %s %s could not print response body in verbose mode", method, reqURL)
 		}
 		log.Printf("%s", out)
 	}
@@ -172,12 +174,12 @@ func request(request Request, count int, env Environment, verbose bool) error {
 
 		op, err := jq.Parse(selector)
 		if err != nil {
-			return fmt.Errorf("error setting variable from selector %s. Use jq format: e.g. foo or .foo.bar or foo.bar (all valid)", selector)
+			return reqURL, duration, fmt.Errorf("error setting variable from selector %s. Use jq format: e.g. foo or .foo.bar or foo.bar (all valid)", selector)
 		}
 
 		value, err := op.Apply(body)
 		if err != nil {
-			return fmt.Errorf("error finding value for key %s to use as variable. Key may not exist. Hint: Use jq format: e.g. foo or .foo.bar or foo.bar (all valid)", selector)
+			return reqURL, duration, fmt.Errorf("error finding value for key %s to use as variable. Key may not exist. Hint: Use jq format: e.g. foo or .foo.bar or foo.bar (all valid)", selector)
 		}
 
 		var setValue interface{}
@@ -186,11 +188,11 @@ func request(request Request, count int, env Environment, verbose bool) error {
 	}
 
 	if failCount > 0 {
-		return fmt.Errorf("  %v failing conditions", failCount)
+		return reqURL, duration, fmt.Errorf("  %v failing conditions", failCount)
 	}
 
 	// request tests passed, return nil error
-	return nil
+	return reqURL, duration, nil
 }
 
 // replaceVars takes a string with template tags and a map of variables and uses the

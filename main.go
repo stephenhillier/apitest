@@ -1,12 +1,18 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
+	"net/url"
+	"os"
+	"os/signal"
 	"regexp"
 	"strings"
+	"time"
 
 	flag "github.com/spf13/pflag"
 	"gopkg.in/yaml.v2"
@@ -91,7 +97,7 @@ func readTestDefinition(filename string) (TestSet, error) {
 // for each one. Since requests are expected to fail often, errors are not passed
 // up to the calling function, but instead reported to output, tallied
 // and the total request & error counts returned at the end of the run.
-func runRequests(requests []Request, env Environment, testname string, verbose bool) (int, int) {
+func runRequests(requests []Request, env Environment, testname string, verbose bool, monitor bool) (int, int) {
 	failCount := 0
 	currentRequest := 0
 
@@ -101,15 +107,38 @@ func runRequests(requests []Request, env Environment, testname string, verbose b
 		if testname != "" && testname != r.Name {
 			continue
 		}
+		method := strings.ToUpper(r.Method)
 
 		currentRequest++
-		err := request(r, currentRequest, env, verbose)
+
+		// make the request.
+		// the hostname/path is parsed immediately so it's available for both
+		// error handling and the "happy path"
+		rawURL, duration, err := request(r, currentRequest, env, verbose)
+		hostname, path := processURL(rawURL)
 		if err != nil {
+			// actions to take for unsuccessful requests
 			log.Println("  ", err)
 			failCount++
+			if monitor {
+				recordError(r.Name, hostname, path, method)
+			}
 		}
+
+		durationSeconds := duration.Seconds()
+		recordRequest(r.Name, hostname, path, method)
+		recordDuration(r.Name, hostname, path, method, durationSeconds)
+
 	}
 	return currentRequest, failCount
+}
+
+func processURL(rawURL string) (string, string) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "", ""
+	}
+	return u.Hostname(), u.EscapedPath()
 }
 
 // processEnvVars iterates through userVars provided through the command line
@@ -134,9 +163,13 @@ func main() {
 	var testname string
 	var userVars []string
 	var verbose bool
+	var monitor bool
+	var listenPort int
 	flag.StringVarP(&filename, "file", "f", "", "yaml file containing a list of test requests")
 	flag.StringVarP(&testname, "test", "t", "", "the name of a single test to run (use quotes if name has spaces)")
 	flag.BoolVarP(&verbose, "verbose", "v", false, "verbose mode: print response body")
+	flag.BoolVarP(&monitor, "monitor", "m", false, "turn on monitor mode to continually run checks")
+	flag.IntVarP(&listenPort, "port", "p", 2112, "port to start listener on (used with -monitor)")
 	flag.StringSliceVarP(&userVars, "env", "e", []string{}, "variables to add to the test environment e.g. myvar=test123")
 	flag.Parse()
 
@@ -157,16 +190,65 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// run the set of tests and exit the program.
-	// additional output will be provided by each request.
-	// TODO: handle multiple test suites
-	log.Println("Running tests...")
-	totalRequests, failCount := runRequests(set.Requests, set.Environment, testname, verbose)
+	if !monitor {
+		// run the set of tests and exit the program.
+		// additional output will be provided by each request.
+		// TODO: handle multiple test suites
+		log.Println("Running tests...")
+		totalRequests, failCount := runRequests(set.Requests, set.Environment, testname, verbose, monitor)
 
-	log.Println("Total requests:", totalRequests)
+		log.Println("Total requests:", totalRequests)
 
-	if failCount > 0 {
-		log.Fatalf("FAIL  %s (%v requests, %v failed)", filename, totalRequests, failCount)
+		if failCount > 0 {
+			log.Fatalf("FAIL  %s (%v requests, %v failed)", filename, totalRequests, failCount)
+		}
+		log.Printf("PASSED  %s (%v requests)", filename, totalRequests)
+		os.Exit(0)
 	}
-	log.Printf("PASSED  %s (%v requests)", filename, totalRequests)
+
+	// using continuous monitor mode - set up metrics handler for Prometheus scraping
+	handler := NewMetricsHandler()
+	m := http.NewServeMux()
+	m.Handle("/metrics", handler)
+	h := http.Server{
+		Addr:    fmt.Sprintf(":%v", listenPort),
+		Handler: m,
+	}
+
+	// listen until receive an interrupt signal
+	go func() {
+		if err = h.ListenAndServe(); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	log.Println("Listening on port", listenPort)
+
+	// run monitoring loop
+	go runMonitor(set.Requests, set.Environment, testname, verbose, filename)
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt)
+
+	<-stop
+	log.Println("Shutting down...")
+	h.Shutdown(context.Background())
+	log.Println("Server stopped")
+
+}
+
+func runMonitor(requests []Request, env Environment, testname string, verbose bool, filename string) {
+	for {
+		totalRequests, failCount := runRequests(requests, env, testname, verbose, true)
+
+		log.Println("Total requests:", totalRequests)
+
+		if failCount > 0 {
+			log.Printf("FAIL  %s (%v requests, %v failed)", filename, totalRequests, failCount)
+		} else {
+			log.Printf("PASSED  %s (%v requests)", filename, totalRequests)
+		}
+
+		time.Sleep(10 * time.Second)
+	}
 }
