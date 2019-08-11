@@ -210,7 +210,7 @@ Replace `test/test.yaml` with the path to your yaml specs.
 See the `.github/main.workflow` file in this repo for a working example.
 
 
-### Prometheus
+### Prometheus usage
 
 apitest can be used with prometheus by setting the `--monitor` (or `-m`) flag.  `monitor` will
 set apitest to run in continuous mode, keeping track of request and error counts and request duration for every test.
