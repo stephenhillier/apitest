@@ -1,6 +1,5 @@
 # apitest
-Test the behavior of an HTTP-based REST API [from the command line](#command-line) or in a container based pipeline like [GitHub Actions](#github-actions).
-
+Test the behavior of an HTTP-based REST API [from the command line](#command-line), in a container based pipeline like [GitHub Actions](#github-actions), or as a running service with continuous monitoring and [Prometheus metrics](#prometheus-usage) collection.
 
 * [Defining test specs in YAML](#yaml-test-specs)
   * [Complete example](#complete-example)
