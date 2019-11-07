@@ -12,9 +12,18 @@ requests:
       status: 200
       values:
         id: 1
-        title: delectus aut autem
+        title:
+          equals: delectus aut autem
+        num_tasks:
+          gt: 1
+          lt: 3
   - name: Create a todo item
     url: "{{host}}/todos"
     method: post
     expect:
       status: 201
+      values:
+        title:
+          exists: true
+        id:
+          equals: 1

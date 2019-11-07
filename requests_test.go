@@ -16,12 +16,14 @@ func basicRequestHandler(w http.ResponseWriter, req *http.Request) {
 		ID          int    `json:"id"`
 		Title       string `json:"title"`
 		Description string `json:"description"`
+		NumTasks    int    `json:"num_tasks"`
 	}
 
 	data := todo{
 		ID:          1,
 		Title:       "delectus aut autem",
 		Description: "something to do",
+		NumTasks:    2,
 	}
 
 	switch req.Method {

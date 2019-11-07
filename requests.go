@@ -321,14 +321,22 @@ func checkJSONResponse(body []byte, selector string, expectedValue interface{}, 
 		return fmt.Errorf("could not decode value from key %s", selector)
 	}
 
-	sValue := fmt.Sprintf("%v", iValue)
-	sExpected := fmt.Sprintf("%v", expectedValue)
+	switch expectedValue.(type) {
+	case map[string]interface{}:
+		// if expectedValue is a map instead of a string, check
+		// for assertion rules.  we expect an error return, or nil (meaning assertion check passed).
+		return checkAssertions(iValue, expectedValue.(map[string]interface{}))
+	default:
+		sValue := fmt.Sprintf("%v", iValue)
+		sExpected := fmt.Sprintf("%v", expectedValue)
 
-	if sValue != sExpected {
-		return fmt.Errorf("expected: %v received: %v", sExpected, sValue)
+		if sValue != sExpected {
+			return fmt.Errorf("expected: %v received: %v", sExpected, sValue)
+		}
+
+		return nil
 	}
 
-	return nil
 }
 
 // contains is a helper function to check if a slice of strings contains a particular string.

@@ -15,7 +15,7 @@ import (
 	"time"
 
 	flag "github.com/spf13/pflag"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // TestSet is a set of requests and assertions

@@ -46,6 +46,10 @@ requests:
       status: 200  
       values:
         comment: This is my comment! # the JSON response `comment` field must match this value
+        date_posted:
+          exists: true # assertion rules can be used instead of a simple string value
+        num_replies:
+          gt: 0 # assert that num_replies is greater than 0
 ```
 
 #### Test spec properties
@@ -86,6 +90,13 @@ requests:
     * `values`: key/value pairs 
     * `strict`: use `strict: true` to require expect & response type to be exactly the same (e.g. the integer `10` is not equal to the string "10"). Default is `false`.
 
+Keys defined under `values` can use a basic comparison syntax (e.g. `type: Pepperoni`) or use an object block to add assertion rules:
+
+  * gt, lt: greater than, less than
+  * ge, le: greater than or equal to, less than or equal to
+  * equals: equality check. Note: not a strict comparison, so 123 is equivalent to "123" despite the type difference)
+  * exists: simple check that the key exists in the response body (use: `exists: true`). Note: "exists: false" currently not supported.
+
 ```yaml
 requests:
   - name: Get pizza
@@ -95,9 +106,10 @@ requests:
       status: 200
       values:
         size: Large
-        type: Pepperoni
-        quantity: 10
-      strict: true # quantity must be a number 10, not a string "10".  Use false if not important.
+        type:
+          equals: Pepperoni # assertion rule syntax. Can also simply use "type: Pepperoni" for basic equality comparisons
+        quantity:
+          gt: 10 # greater than
 ```
 
   * `set`: a list of env variables to set from the response. Each item should have a `var` (the variable to be set) and `from` (a field in the response). This will be helpful for capturing the ID of a created resource to use in a later request.
